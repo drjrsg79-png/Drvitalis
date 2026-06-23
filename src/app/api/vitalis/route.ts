@@ -1,9 +1,10 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
+// Zero-config: en Netlify, AI Gateway inyecta ANTHROPIC_API_KEY y
+// ANTHROPIC_BASE_URL automáticamente, por lo que no es necesario gestionar
+// claves manualmente. El SDK las detecta solo.
+const client = new Anthropic();
 
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const response = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6",
       max_tokens: 1000,
       system: systemPrompt || "",
       messages: messages,

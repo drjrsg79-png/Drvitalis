@@ -1,6 +1,12 @@
 'use client';
 import { useState, useEffect, useRef } from "react";
 
+type Perfil = {
+  nombre?: string; edad?: string; pais?: string; condicion?: string;
+  tiempo?: string; objetivo?: string; medicamentos?: string; alergias?: string;
+  presion?: string; diabetes?: string; cardio?: string;
+};
+
 /* ═══════════════════════════════════════════════════════════
    DESIGN TOKENS
 ═══════════════════════════════════════════════════════════ */
@@ -27,9 +33,9 @@ const css = `
 `;
 
 const IMG = {
-  hero:    "https://images.unsplash.com/photo-1629909615184-74f495363b67?w=900&q=80&auto=format",
+  hero:    "https://images.unsplash.com/photo-1551076805-e1869033e561?w=900&q=80&auto=format",
   doctor:  "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=400&q=80&auto=format",
-  clinic:  "https://images.unsplash.com/photo-1519494026892-80bbd2d6fd0d?w=900&q=80&auto=format",
+  clinic:  "https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=900&q=80&auto=format",
   sport:   "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&q=80&auto=format",
   pills:   "https://images.unsplash.com/photo-1550572017-edd951b55104?w=600&q=80&auto=format",
   calendar:"https://images.unsplash.com/photo-1506784983877-45594efa4cbe?w=600&q=80&auto=format",
@@ -122,7 +128,7 @@ const Btn = ({children,onClick,variant="gold",style={},disabled=false}) => {
   );
 };
 
-const FieldInput = ({label,type="text",value,onChange,placeholder,options}) => (
+const FieldInput = ({label,type="text",value,onChange,placeholder,options}:{label:string;type?:string;value:string;onChange:(v:string)=>void;placeholder?:string;options?:string[]}) => (
   <div style={{marginBottom:18}}>
     <Label>{label}</Label>
     {options ? (
@@ -872,9 +878,205 @@ const LaunchView = () => {
   );
 };
 
+const Landing = ({onStart,onDemo}) => (
+  <div style={{minHeight:"100dvh",background:T.cream,overflowY:"auto"}}>
+    <div style={{maxWidth:480,margin:"0 auto"}}>
+      <div style={{position:"relative",height:340,overflow:"hidden"}}>
+        <ImgWithFallback src={IMG.hero} alt="Vitalis — salud sexual masculina"
+          style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+        <div style={{position:"absolute",inset:0,
+          background:`linear-gradient(to bottom,rgba(28,28,30,0.55) 0%,rgba(250,248,245,0) 35%,rgba(250,248,245,0.98) 100%)`}}/>
+        <div style={{position:"absolute",top:18,left:18}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,
+            color:T.white,letterSpacing:"0.06em"}}>VITALIS</div>
+          <div style={{fontSize:8,letterSpacing:"0.22em",color:"rgba(255,255,255,.8)",
+            textTransform:"uppercase"}}>Salud Sexual Masculina</div>
+        </div>
+      </div>
+
+      <div style={{padding:"0 22px 36px",marginTop:-40,position:"relative"}}>
+        <div style={{fontSize:10,letterSpacing:"0.18em",color:T.gold,fontWeight:600,
+          textTransform:"uppercase",marginBottom:8}}>Tu urólogo experto, disponible 24/7</div>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:700,
+          color:T.charcoal,lineHeight:1.2,marginBottom:14}}>
+          Recupera tu vitalidad con un protocolo médico personalizado.
+        </h1>
+        <p style={{fontSize:14,color:T.muted,lineHeight:1.8,marginBottom:24}}>
+          El Dr. Vitalis evalúa tu caso y diseña un plan con medicamentos de dosis exacta,
+          ejercicios terapéuticos guiados en video y un calendario de seguimiento. Respuestas
+          inmediatas, incluso antes de una relación sexual.
+        </p>
+
+        <div style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:6,
+          padding:18,marginBottom:22}}>
+          {[
+            ["Disfunción eréctil","Sildenafil, Tadalafil y Vardenafil con dosis y horarios precisos."],
+            ["Eyaculación precoz","Dapoxetina, técnicas de control y ejercicios del suelo pélvico."],
+            ["Testosterona baja","Terapia hormonal, suplementos y entrenamiento de fuerza."],
+          ].map(([t,d],i)=>(
+            <div key={t} style={{display:"flex",gap:12,alignItems:"flex-start",
+              paddingTop:i===0?0:12,marginTop:i===0?0:12,
+              borderTop:i===0?"none":`1px solid ${T.ivoryMid}`}}>
+              <div style={{width:6,height:6,borderRadius:"50%",background:T.gold,
+                marginTop:7,flexShrink:0}}/>
+              <div>
+                <div style={{fontSize:13,fontWeight:600,color:T.charcoal,marginBottom:2}}>{t}</div>
+                <div style={{fontSize:12,color:T.muted,lineHeight:1.6}}>{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:18}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:700,
+            color:T.charcoal}}>$599</div>
+          <div style={{fontSize:13,color:T.muted}}>MXN / mes · cancela cuando quieras</div>
+        </div>
+
+        <Btn variant="gold" onClick={onStart} style={{width:"100%",justifyContent:"center",
+          padding:"14px 24px",marginBottom:10}}>Comenzar ahora</Btn>
+        <Btn variant="outline" onClick={onDemo} style={{width:"100%",justifyContent:"center",
+          padding:"14px 24px"}}>Ver demostración</Btn>
+
+        <p style={{fontSize:11,color:T.subtle,lineHeight:1.6,marginTop:18,textAlign:"center"}}>
+          El contenido de Vitalis tiene carácter informativo y no reemplaza la consulta
+          con un profesional de la salud.
+        </p>
+      </div>
+    </div>
+  </div>
+);
+
+const StripePayment = ({onSuccess,onBack}) => {
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState("");
+
+  const pagar = async () => {
+    setLoading(true); setError("");
+    try {
+      const res = await fetch("/api/stripe/checkout",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; return; }
+      setError(data.error || "No se pudo iniciar el pago. Intente nuevamente.");
+    } catch {
+      setError("Error de conexión con la pasarela de pago.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{minHeight:"100dvh",background:T.cream,display:"flex",flexDirection:"column"}}>
+      <div style={{maxWidth:480,margin:"0 auto",width:"100%",padding:"22px 22px 36px"}}>
+        <button onClick={onBack}
+          style={{background:"none",border:"none",cursor:"pointer",fontSize:12,color:T.muted,
+            fontFamily:"'Jost',sans-serif",letterSpacing:"0.04em",marginBottom:24,padding:0}}>
+          ‹ Volver
+        </button>
+
+        <div style={{fontSize:10,letterSpacing:"0.18em",color:T.gold,fontWeight:600,
+          textTransform:"uppercase",marginBottom:8}}>Suscripción</div>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,
+          color:T.charcoal,marginBottom:22}}>Vitalis Pro</h1>
+
+        <div style={{background:T.white,border:`1px solid ${T.border}`,borderRadius:6,
+          overflow:"hidden",marginBottom:22}}>
+          <div style={{padding:"16px 18px",borderBottom:`1px solid ${T.ivoryMid}`,
+            display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+            <div style={{fontSize:14,fontWeight:600,color:T.charcoal}}>Consulta médica mensual</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,
+              color:T.charcoal}}>$599<span style={{fontSize:12,color:T.muted,fontWeight:400}}> MXN</span></div>
+          </div>
+          <div style={{padding:"14px 18px"}}>
+            {["Consultas ilimitadas con el Dr. Vitalis",
+              "Protocolo farmacológico con dosis exactas",
+              "Ejercicios terapéuticos guiados en video",
+              "Calendario de adherencia y recordatorios"].map(f=>(
+              <div key={f} style={{display:"flex",gap:10,alignItems:"flex-start",marginBottom:9}}>
+                <div style={{width:5,height:5,borderRadius:"50%",background:T.teal,
+                  marginTop:6,flexShrink:0}}/>
+                <div style={{fontSize:13,color:T.ink,lineHeight:1.5}}>{f}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {error && (
+          <div style={{padding:"10px 13px",background:T.dangerFaint,
+            border:`1px solid rgba(192,57,43,.18)`,borderRadius:4,
+            fontSize:12,color:T.danger,lineHeight:1.6,marginBottom:14}}>{error}</div>
+        )}
+
+        <Btn variant="gold" onClick={pagar} disabled={loading}
+          style={{width:"100%",justifyContent:"center",padding:"14px 24px",marginBottom:10}}>
+          {loading?"Redirigiendo a pago seguro...":"Pagar y comenzar"}
+        </Btn>
+        <button onClick={onSuccess}
+          style={{width:"100%",background:"none",border:"none",cursor:"pointer",
+            fontSize:12,color:T.subtle,fontFamily:"'Jost',sans-serif",padding:"6px"}}>
+          Continuar en modo demostración
+        </button>
+
+        <p style={{fontSize:11,color:T.subtle,lineHeight:1.6,marginTop:18,textAlign:"center"}}>
+          Pago procesado de forma segura por Stripe. Puede cancelar su suscripción en cualquier momento.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+const Onboarding = ({onComplete}) => {
+  const [d,setD] = useState({nombre:"",edad:"",pais:"",condicion:"",tiempo:"",objetivo:"",
+    medicamentos:"",alergias:"",presion:"",diabetes:"",cardio:""});
+  const set = (k)=>(v)=>setD(p=>({...p,[k]:v}));
+  const listo = d.nombre.trim() && d.edad && d.pais && d.condicion;
+
+  return (
+    <div style={{minHeight:"100dvh",background:T.cream,overflowY:"auto"}}>
+      <div style={{maxWidth:480,margin:"0 auto",padding:"22px 22px 40px"}}>
+        <div style={{fontSize:10,letterSpacing:"0.18em",color:T.gold,fontWeight:600,
+          textTransform:"uppercase",marginBottom:8}}>Historia clínica</div>
+        <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,
+          color:T.charcoal,marginBottom:6}}>Cuéntele al Dr. Vitalis sobre usted</h1>
+        <p style={{fontSize:13,color:T.muted,lineHeight:1.7,marginBottom:24}}>
+          Esta información permite personalizar su protocolo y verificar contraindicaciones.
+        </p>
+
+        <FieldInput label="Nombre" value={d.nombre} onChange={set("nombre")} placeholder="Su nombre"/>
+        <FieldInput label="Edad" type="number" value={d.edad} onChange={set("edad")} placeholder="Años"/>
+        <FieldInput label="País" value={d.pais} onChange={set("pais")} options={PAISES}/>
+        <FieldInput label="Condición principal" value={d.condicion} onChange={set("condicion")} options={CONDICIONES}/>
+        <FieldInput label="¿Cuánto tiempo lleva con esta condición?" value={d.tiempo} onChange={set("tiempo")} placeholder="Ej: 8 meses"/>
+        <FieldInput label="Objetivo de tratamiento" value={d.objetivo} onChange={set("objetivo")} placeholder="Ej: recuperar erección firme"/>
+
+        <Rule style={{margin:"6px 0 18px"}}/>
+        <Label style={{marginBottom:14}}>Antecedentes médicos</Label>
+
+        <FieldInput label="Medicamentos actuales" value={d.medicamentos} onChange={set("medicamentos")} placeholder="Ej: Enalapril 10 mg — o 'Ninguno'"/>
+        <FieldInput label="Alergias" value={d.alergias} onChange={set("alergias")} placeholder="Ej: Ninguna"/>
+        <FieldInput label="¿Hipertensión arterial?" value={d.presion} onChange={set("presion")} options={["No","Si"]}/>
+        <FieldInput label="¿Diabetes?" value={d.diabetes} onChange={set("diabetes")} options={["No","Tipo 1","Tipo 2","No sé"]}/>
+        <FieldInput label="¿Cardiopatía?" value={d.cardio} onChange={set("cardio")} options={["No","Si"]}/>
+
+        <Btn variant="gold" onClick={()=>listo&&onComplete(d)} disabled={!listo}
+          style={{width:"100%",justifyContent:"center",padding:"14px 24px",marginTop:6}}>
+          Crear mi protocolo
+        </Btn>
+        {!listo && (
+          <p style={{fontSize:11,color:T.subtle,textAlign:"center",marginTop:10}}>
+            Complete nombre, edad, país y condición para continuar.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [screen,setScreen] = useState("landing");
-  const [perfil,setPerfil] = useState({});
+  const [perfil,setPerfil] = useState<Perfil>({});
   const [tab,setTab] = useState("dashboard");
 
   useEffect(()=>{
