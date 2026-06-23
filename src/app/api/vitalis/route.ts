@@ -28,6 +28,7 @@ export async function POST(request: NextRequest) {
     });
 
     const data = await response.json();
+    console.error('API Response:', data);
     const reply = data.content?.[0]?.text || 'Sin respuesta';
 
     return NextResponse.json({ reply });
