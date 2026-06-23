@@ -1,37 +1,40 @@
-import Anthropic from "@anthropic-ai/sdk";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse } from 'next/server';
 
-const client = new Anthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-});
-
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const { messages, systemPrompt } = await req.json();
+    const { systemPrompt, messages } = await request.json();
+    const apiKey = process.env.ANTHROPIC_API_KEY;
 
-    if (!messages || !Array.isArray(messages)) {
+    if (!apiKey) {
       return NextResponse.json(
-        { error: "messages es requerido y debe ser un arreglo" },
-        { status: 400 }
+        { reply: 'Error: API key no configurada' },
+        { status: 500 }
       );
     }
 
-    const response = await client.messages.create({
-      model: "claude-opus-4-20250514",
-      max_tokens: 1000,
-      system: systemPrompt || "",
-      messages: messages,
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+      },
+      body: JSON.stringify({
+        model: 'claude-opus-4-20250514',
+        max_tokens: 1024,
+        system: systemPrompt || '',
+        messages: messages,
+      }),
     });
 
-    const text = response.content
-      .map((c: any) => (c.type === "text" ? c.text : ""))
-      .join("");
+    const data = await response.json();
+    const reply = data.content?.[0]?.text || 'Sin respuesta';
 
-    return NextResponse.json({ reply: text });
-  } catch (err: any) {
-    console.error("Error en /api/vitalis:", err?.message);
+    return NextResponse.json({ reply });
+  } catch (error: any) {
+    console.error('Error en /api/vitalis:', error?.message);
     return NextResponse.json(
-      { error: "No se pudo obtener respuesta del Dr. Vitalis." },
+      { reply: 'Error de conexión con Dr. Vitalis' },
       { status: 500 }
     );
   }
