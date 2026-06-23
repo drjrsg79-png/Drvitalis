@@ -122,7 +122,14 @@ const Btn = ({children,onClick,variant="gold",style={},disabled=false}) => {
   );
 };
 
-const FieldInput = ({label,type="text",value,onChange,placeholder,options}) => (
+const FieldInput = ({label,type="text",value,onChange,placeholder,options}: {
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  options?: string[];
+}) => (
   <div style={{marginBottom:18}}>
     <Label>{label}</Label>
     {options ? (
@@ -872,9 +879,193 @@ const LaunchView = () => {
   );
 };
 
+/* ═══════════════════════════════════════════════════════════
+   LANDING
+═══════════════════════════════════════════════════════════ */
+const Landing = ({onStart,onDemo}) => {
+  const FEATURES=[
+    {t:"Consulta 24/7",d:"Un urólogo especialista responde al instante, incluso minutos antes de una relación sexual."},
+    {t:"Protocolo personalizado",d:"Medicamentos con nombre comercial y dosis exactas según su país e historial clínico."},
+    {t:"Ejercicios guiados",d:"Rutinas en video para recuperar y mantener la función sexual masculina."},
+    {t:"Seguimiento diario",d:"Calendario de adherencia para dosis y ejercicios, sin perder el ritmo."},
+  ];
+  return (
+    <div style={{maxWidth:480,margin:"0 auto",minHeight:"100dvh",background:T.cream}}>
+      <div style={{position:"relative",height:340,overflow:"hidden"}}>
+        <ImgWithFallback src={IMG.hero} alt="Vitalis" seed="hero"
+          style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+        <div style={{position:"absolute",inset:0,
+          background:"linear-gradient(180deg,rgba(28,28,30,0.28) 0%,rgba(250,248,245,0.94) 88%)"}}/>
+        <div style={{position:"absolute",inset:0,display:"flex",flexDirection:"column",
+          justifyContent:"flex-end",padding:"0 24px 26px"}}>
+          <Chip text="Salud sexual masculina"/>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:38,fontWeight:700,
+            color:T.charcoal,lineHeight:1.05,marginTop:12}}>Dr. Vitalis</div>
+          <div style={{fontSize:15,color:T.ink,marginTop:8,lineHeight:1.5}}>
+            Su urólogo especialista, disponible 24/7. Discreto, profesional y siempre a su lado.
+          </div>
+        </div>
+      </div>
+
+      <div className="fu" style={{padding:"26px 24px 40px"}}>
+        {FEATURES.map((f,i)=>(
+          <div key={i} style={{display:"flex",gap:14,marginBottom:20,alignItems:"flex-start"}}>
+            <div style={{width:30,height:30,borderRadius:3,flexShrink:0,background:T.goldFaint,
+              border:`1px solid ${T.goldLine}`,display:"flex",alignItems:"center",justifyContent:"center",
+              fontFamily:"'Playfair Display',serif",fontWeight:600,color:T.goldDark,fontSize:14}}>{i+1}</div>
+            <div>
+              <div style={{fontWeight:600,fontSize:15,color:T.charcoal,marginBottom:3}}>{f.t}</div>
+              <div style={{fontSize:13,color:T.muted,lineHeight:1.55}}>{f.d}</div>
+            </div>
+          </div>
+        ))}
+
+        <Rule style={{margin:"8px 0 22px"}}/>
+
+        <div style={{textAlign:"center",marginBottom:20}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:T.charcoal}}>
+            $599 <span style={{fontSize:15,color:T.muted,fontWeight:400}}>MXN / mes</span>
+          </div>
+          <div style={{fontSize:12,color:T.subtle,marginTop:4}}>Sin permanencia. Cancele cuando quiera.</div>
+        </div>
+
+        <Btn onClick={onStart} style={{width:"100%",justifyContent:"center"}}>Comenzar ahora</Btn>
+        <Btn onClick={onDemo} variant="outline" style={{width:"100%",justifyContent:"center",marginTop:12}}>
+          Ver demostración
+        </Btn>
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════
+   PAGO (STRIPE)
+═══════════════════════════════════════════════════════════ */
+const StripePayment = ({onSuccess,onBack}) => {
+  const [email,setEmail] = useState("");
+  const [nombre,setNombre] = useState("");
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState("");
+
+  const pagar = async () => {
+    setError("");
+    if (!email || !email.includes("@")) { setError("Ingrese un correo electrónico válido."); return; }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/stripe/checkout",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({email,nombre}),
+      });
+      const data = await res.json();
+      if (data.url) { window.location.href = data.url; return; }
+      setError(data.error || "No se pudo iniciar el pago. Intente de nuevo.");
+    } catch {
+      setError("No se pudo conectar con el servicio de pago. Intente de nuevo.");
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{maxWidth:480,margin:"0 auto",minHeight:"100dvh",background:T.cream}}>
+      <SectionHeader src={IMG.stripe} title="Suscripción Vitalis Pro" sub="Pago seguro" seed="pay"/>
+      <div className="fu" style={{padding:"24px 24px 40px"}}>
+        <div style={{padding:"18px 18px",background:T.white,border:`1px solid ${T.border}`,
+          borderRadius:4,marginBottom:22}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
+            <div style={{fontWeight:600,fontSize:15,color:T.charcoal}}>Vitalis Pro</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.charcoal}}>
+              $599 <span style={{fontSize:12,color:T.muted,fontWeight:400}}>MXN/mes</span>
+            </div>
+          </div>
+          <div style={{fontSize:12,color:T.muted,marginTop:6,lineHeight:1.6}}>
+            Consulta médica ilimitada con el Dr. Vitalis, protocolo personalizado, medicamentos, ejercicios y calendario de adherencia.
+          </div>
+        </div>
+
+        <FieldInput label="Nombre" value={nombre} onChange={setNombre} placeholder="Su nombre"/>
+        <FieldInput label="Correo electrónico" type="email" value={email} onChange={setEmail}
+          placeholder="correo@ejemplo.com"/>
+
+        {error && (
+          <div style={{padding:"10px 14px",background:T.dangerFaint,border:`1px solid ${T.danger}40`,
+            borderRadius:3,color:T.danger,fontSize:12,marginBottom:16,lineHeight:1.5}}>{error}</div>
+        )}
+
+        <Btn onClick={pagar} disabled={loading}
+          style={{width:"100%",justifyContent:"center"}}>
+          {loading ? "Redirigiendo a pago seguro…" : "Pagar con Stripe"}
+        </Btn>
+        <Btn onClick={onBack} variant="subtle"
+          style={{width:"100%",justifyContent:"center",marginTop:12}}>Volver</Btn>
+
+        <div style={{fontSize:11,color:T.subtle,textAlign:"center",marginTop:18,lineHeight:1.6}}>
+          El pago se procesa de forma segura a través de Stripe. Será redirigido para completar su suscripción.
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════
+   ONBOARDING
+═══════════════════════════════════════════════════════════ */
+const Onboarding = ({onComplete}) => {
+  const [f,setF] = useState({
+    nombre:"",edad:"",pais:"",condicion:"",tiempo:"",objetivo:"",
+    medicamentos:"",alergias:"",presion:"",diabetes:"",cardio:"",
+  });
+  const set = (k) => (v) => setF(prev=>({...prev,[k]:v}));
+  const SINO = ["Si","No"];
+  const completo = f.nombre && f.edad && f.pais && f.condicion;
+
+  return (
+    <div style={{maxWidth:480,margin:"0 auto",minHeight:"100dvh",background:T.cream}}>
+      <SectionHeader src={IMG.doctor} title="Su perfil clínico" sub="Confidencial" seed="onb"/>
+      <div className="fu" style={{padding:"24px 24px 40px"}}>
+        <div style={{padding:"12px 14px",background:T.tealFaint,border:`1px solid ${T.tealLine}`,
+          borderRadius:4,marginBottom:22,fontSize:12,color:T.teal,lineHeight:1.6}}>
+          Estos datos permiten al Dr. Vitalis personalizar su protocolo. Toda la información es confidencial.
+        </div>
+
+        <FieldInput label="Nombre" value={f.nombre} onChange={set("nombre")} placeholder="Su nombre"/>
+        <FieldInput label="Edad" type="number" value={f.edad} onChange={set("edad")} placeholder="Ej. 44"/>
+        <FieldInput label="País" value={f.pais} onChange={set("pais")} options={PAISES}/>
+        <FieldInput label="Condición principal" value={f.condicion} onChange={set("condicion")} options={CONDICIONES}/>
+        <FieldInput label="Tiempo con la condición" value={f.tiempo} onChange={set("tiempo")} placeholder="Ej. 8 meses"/>
+        <FieldInput label="Objetivo principal" value={f.objetivo} onChange={set("objetivo")}
+          placeholder="Ej. Recuperar erección firme"/>
+        <FieldInput label="Medicamentos actuales" value={f.medicamentos} onChange={set("medicamentos")}
+          placeholder="Ej. Enalapril 10mg — o Ninguno"/>
+        <FieldInput label="Alergias" value={f.alergias} onChange={set("alergias")}
+          placeholder="Ej. Ninguna"/>
+        <FieldInput label="¿Presión arterial alta?" value={f.presion} onChange={set("presion")} options={SINO}/>
+        <FieldInput label="¿Diabetes?" value={f.diabetes} onChange={set("diabetes")} options={["Si","No","No sé"]}/>
+        <FieldInput label="¿Cardiopatía?" value={f.cardio} onChange={set("cardio")} options={SINO}/>
+
+        <Btn onClick={()=>onComplete(f)} disabled={!completo}
+          style={{width:"100%",justifyContent:"center",marginTop:6}}>
+          Iniciar consulta
+        </Btn>
+        {!completo && (
+          <div style={{fontSize:11,color:T.subtle,textAlign:"center",marginTop:12}}>
+            Complete nombre, edad, país y condición para continuar.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+type Perfil = {
+  nombre?: string; edad?: string; pais?: string; condicion?: string;
+  tiempo?: string; objetivo?: string; medicamentos?: string; alergias?: string;
+  presion?: string; diabetes?: string; cardio?: string;
+};
+
 export default function App() {
   const [screen,setScreen] = useState("landing");
-  const [perfil,setPerfil] = useState({});
+  const [perfil,setPerfil] = useState<Perfil>({});
   const [tab,setTab] = useState("dashboard");
 
   useEffect(()=>{
