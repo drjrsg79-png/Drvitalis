@@ -26,10 +26,35 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type Evaluacion = {
+  edad: string;
+  ereccionesMatutinas: string;
+  tiempoProblema: string;
+  diabetes: string;
+  hipertension: string;
+};
 
 const PRECIO = "$599 MXN";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+const evaluacionVacia: Evaluacion = {
+  edad: "",
+  ereccionesMatutinas: "",
+  tiempoProblema: "",
+  diabetes: "",
+  hipertension: "",
+};
+
+const describirEvaluacion = (e: Evaluacion) =>
+  [
+    `Mini evaluación para disfunción eréctil.`,
+    `Edad: ${e.edad || "no indicada"}.`,
+    `Erecciones matutinas: ${e.ereccionesMatutinas || "no indicado"}.`,
+    `Tiempo con el problema: ${e.tiempoProblema || "no indicado"}.`,
+    `Diabetes: ${e.diabetes || "no indicado"}.`,
+    `Hipertensión: ${e.hipertension || "no indicado"}.`,
+  ].join(" ");
 
 async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   try {
@@ -191,7 +216,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
+              Hacer mini evaluación gratis
             </button>
             <button
               onClick={onSubscribe}
@@ -361,9 +386,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {[
-            ["1", "Cuéntanos tu caso", "Completas un perfil breve y confidencial con tu información básica."],
-            ["2", "Habla con el Dr. Vitalis", "Recibes orientación inmediata sobre tu salud sexual, sin esperas ni citas."],
-            ["3", "Sigue tu protocolo", "Activas Vitalis para acceder a tu plan completo y al acompañamiento continuo."],
+            ["1", "Responde 5 preguntas", "Edad, erecciones matutinas, tiempo con el problema, diabetes e hipertensión."],
+            ["2", "Recibe un resultado preliminar", "Ves si tu caso parece compatible con un protocolo personalizado."],
+            ["3", "Activa Vitalis Pro", "Desbloqueas tu plan completo y el acompañamiento continuo del Dr. Vitalis."],
           ].map(([n, t, d]) => (
             <div
               key={n}
@@ -610,6 +635,242 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
     </button>
   </div>
 );
+
+const Assessment = ({ onComplete }: { onComplete: (e: Evaluacion) => void }) => {
+  const [form, setForm] = useState<Evaluacion>(evaluacionVacia);
+  const [touched, setTouched] = useState(false);
+  const completo = Object.values(form).every((v) => v.trim() !== "");
+
+  const optionStyle = (active: boolean) => ({
+    width: "100%",
+    padding: "12px 14px",
+    border: `1px solid ${active ? T.gold : T.border}`,
+    borderRadius: "10px",
+    background: active ? "rgba(184,146,42,0.11)" : T.white,
+    color: T.ink,
+    textAlign: "left" as const,
+    cursor: "pointer",
+    fontSize: "14px",
+    fontWeight: active ? 800 : 600,
+  });
+
+  const groups: Array<{
+    key: keyof Evaluacion;
+    label: string;
+    options: string[];
+  }> = [
+    { key: "ereccionesMatutinas", label: "Erecciones matutinas", options: ["Frecuentes", "Ocasionales", "Casi nunca"] },
+    { key: "tiempoProblema", label: "Tiempo con el problema", options: ["Menos de 3 meses", "3 a 12 meses", "Más de 1 año"] },
+    { key: "diabetes", label: "Diabetes", options: ["No", "Sí", "No estoy seguro"] },
+    { key: "hipertension", label: "Hipertensión", options: ["No", "Sí", "No estoy seguro"] },
+  ];
+
+  const submit = () => {
+    setTouched(true);
+    if (completo) onComplete(form);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: T.cream, padding: "28px 24px" }}>
+      <div className="rise" style={{ maxWidth: "760px", margin: "0 auto", animationDelay: "0.04s" }}>
+        <Header />
+        <div
+          style={{
+            marginTop: "28px",
+            background: T.white,
+            border: `1px solid ${T.border}`,
+            borderRadius: "18px",
+            padding: "26px",
+            boxShadow: "0 24px 52px -38px rgba(27,27,29,0.5)",
+          }}
+        >
+          <div style={{ color: T.teal, fontSize: "12px", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "12px" }}>
+            Mini evaluación gratuita
+          </div>
+          <h2 style={{ fontFamily: display, fontSize: "30px", color: T.charcoal, margin: "0 0 8px", lineHeight: 1.16 }}>
+            Responde 5 preguntas rápidas
+          </h2>
+          <p style={{ color: T.muted, fontSize: "14px", lineHeight: 1.6, margin: "0 0 24px" }}>
+            Tus respuestas ayudan a estimar si tu caso parece compatible con un protocolo personalizado para disfunción eréctil.
+          </p>
+
+          <label style={{ display: "block", fontSize: "13px", fontWeight: 800, color: T.charcoal, marginBottom: "8px" }}>Edad</label>
+          <input
+            className="field"
+            placeholder="Ej. 42"
+            inputMode="numeric"
+            value={form.edad}
+            onChange={(e) => setForm({ ...form, edad: e.target.value })}
+            style={{
+              width: "100%",
+              padding: "13px 14px",
+              border: `1px solid ${touched && !form.edad ? "#C0492F" : T.border}`,
+              borderRadius: "10px",
+              fontSize: "14px",
+              background: T.white,
+              color: T.ink,
+              marginBottom: "20px",
+            }}
+          />
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "18px" }}>
+            {groups.map((g) => (
+              <div key={g.key}>
+                <div style={{ fontSize: "13px", fontWeight: 800, color: T.charcoal, marginBottom: "8px" }}>{g.label}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {g.options.map((option) => (
+                    <button
+                      key={option}
+                      type="button"
+                      className="chip"
+                      onClick={() => setForm({ ...form, [g.key]: option })}
+                      style={optionStyle(form[g.key] === option)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {touched && !completo && (
+            <div style={{ color: "#C0492F", fontSize: "12px", fontWeight: 700, marginTop: "16px" }}>
+              Completa las 5 respuestas para ver tu resultado preliminar.
+            </div>
+          )}
+
+          <button
+            onClick={submit}
+            className="btn btn-primary"
+            style={{
+              width: "100%",
+              marginTop: "24px",
+              padding: "15px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              cursor: "pointer",
+              fontSize: "15px",
+              fontWeight: 800,
+            }}
+          >
+            Ver resultado preliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ResultGate = ({
+  evaluacion,
+  loading,
+  onSubscribe,
+}: {
+  evaluacion: Evaluacion;
+  loading: boolean;
+  onSubscribe: (p: Perfil) => void;
+}) => {
+  const [form, setForm] = useState({ nombre: "", email: "", pais: "" });
+  const [touched, setTouched] = useState(false);
+  const nombreOk = form.nombre.trim() !== "";
+  const correoOk = emailValido(form.email);
+
+  const submit = () => {
+    setTouched(true);
+    if (!nombreOk || !correoOk || loading) return;
+    onSubscribe({
+      nombre: form.nombre,
+      email: form.email,
+      edad: evaluacion.edad,
+      pais: form.pais,
+      condicion: describirEvaluacion(evaluacion),
+    });
+  };
+
+  const inputBase = {
+    width: "100%",
+    padding: "13px 14px",
+    border: `1px solid ${T.border}`,
+    borderRadius: "10px",
+    fontSize: "14px",
+    background: T.white,
+    color: T.ink,
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: T.cream, padding: "32px 24px", display: "flex", alignItems: "center" }}>
+      <div className="rise" style={{ maxWidth: "820px", width: "100%", margin: "0 auto", animationDelay: "0.04s" }}>
+        <Header />
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 0.78fr)", gap: "22px", marginTop: "28px" }} className="hero-grid">
+          <section style={{ background: T.white, border: `1px solid ${T.gold}`, borderRadius: "18px", padding: "28px" }}>
+            <div style={{ color: T.teal, fontSize: "12px", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "12px" }}>
+              Resultado preliminar disponible
+            </div>
+            <h2 style={{ fontFamily: display, fontSize: "32px", color: T.charcoal, margin: "0 0 14px", lineHeight: 1.14 }}>
+              Tu caso parece compatible con un protocolo para disfunción eréctil.
+            </h2>
+            <p style={{ color: T.muted, fontSize: "15px", lineHeight: 1.65, margin: "0 0 18px" }}>
+              Activa Vitalis Pro para recibir tu plan personalizado, seguimiento y recomendaciones adaptadas a tu perfil.
+            </p>
+            <div style={{ background: T.cream, border: `1px solid ${T.border}`, borderRadius: "12px", padding: "16px", color: T.ink, fontSize: "13.5px", lineHeight: 1.6 }}>
+              No sustituye una consulta médica. Si tienes diabetes, hipertensión, dolor en el pecho o tomas medicamentos cardiovasculares, consulta con un profesional antes de iniciar cualquier protocolo.
+            </div>
+          </section>
+
+          <section style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: "18px", padding: "24px" }}>
+            <div style={{ fontSize: "14px", fontWeight: 800, color: T.charcoal, marginBottom: "12px" }}>Activar Vitalis Pro</div>
+            <input
+              className="field"
+              placeholder="Nombre"
+              value={form.nombre}
+              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              style={{ ...inputBase, borderColor: touched && !nombreOk ? "#C0492F" : T.border, marginBottom: "12px" }}
+            />
+            <input
+              className="field"
+              placeholder="Correo electrónico"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              style={{ ...inputBase, borderColor: touched && !correoOk ? "#C0492F" : T.border, marginBottom: "12px" }}
+            />
+            <input
+              className="field"
+              placeholder="País"
+              value={form.pais}
+              onChange={(e) => setForm({ ...form, pais: e.target.value })}
+              style={{ ...inputBase, marginBottom: "18px" }}
+            />
+            {touched && (!nombreOk || !correoOk) && (
+              <div style={{ fontSize: "12px", color: "#C0492F", marginBottom: "12px" }}>Indica nombre y correo válido para continuar.</div>
+            )}
+            <button
+              onClick={submit}
+              disabled={loading}
+              className="btn btn-primary"
+              style={{
+                width: "100%",
+                padding: "15px",
+                background: loading ? T.border : T.gold,
+                color: T.white,
+                border: "none",
+                borderRadius: "999px",
+                cursor: loading ? "wait" : "pointer",
+                fontSize: "15px",
+                fontWeight: 800,
+              }}
+            >
+              {loading ? "Redirigiendo a pago seguro..." : `Activar Vitalis Pro — ${PRECIO}/mes`}
+            </button>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void }) => {
   const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
@@ -960,8 +1221,9 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 };
 
 export default function App() {
-  const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
+  const [screen, setScreen] = useState<"landing" | "assessment" | "result" | "onboarding" | "chat" | "success">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+  const [evaluacion, setEvaluacion] = useState<Evaluacion>(evaluacionVacia);
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
 
@@ -998,11 +1260,30 @@ export default function App() {
         <Landing
           onStart={() => {
             setIntent("chat");
-            setScreen("onboarding");
+            setScreen("assessment");
           }}
           onSubscribe={() => {
             setIntent("subscribe");
             setScreen("onboarding");
+          }}
+        />
+      )}
+      {screen === "assessment" && (
+        <Assessment
+          onComplete={(e) => {
+            setEvaluacion(e);
+            setScreen("result");
+          }}
+        />
+      )}
+      {screen === "result" && (
+        <ResultGate
+          evaluacion={evaluacion}
+          loading={redirecting}
+          onSubscribe={(p) => {
+            setPerfil(p);
+            setIntent("subscribe");
+            irACheckout(p);
           }}
         />
       )}
