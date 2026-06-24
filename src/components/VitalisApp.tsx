@@ -191,7 +191,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
+              Comenzar evaluación gratuita
             </button>
             <button
               onClick={onSubscribe}
