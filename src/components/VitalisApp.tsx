@@ -36,7 +36,13 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: perfil.email, nombre: perfil.nombre }),
+      body: JSON.stringify({
+        email: perfil.email,
+        nombre: perfil.nombre,
+        edad: perfil.edad,
+        pais: perfil.pais,
+        condicion: perfil.condicion,
+      }),
     });
     const data = await res.json();
     return data.url || null;
