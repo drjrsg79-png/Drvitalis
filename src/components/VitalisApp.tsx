@@ -26,10 +26,84 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type SubscriptionStatus = "unknown" | "inactive" | "active" | "past_due" | "canceled";
 
 const PRECIO = "$599 MXN";
+const PERFIL_STORAGE_KEY = "vitalis.perfil";
+const SUBSCRIPTION_STORAGE_KEY = "vitalis.subscriptionStatus";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+const perfilVacio = (): Perfil => ({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+
+const normalizarPerfil = (perfil: Partial<Perfil>): Perfil => ({
+  nombre: perfil.nombre || "",
+  email: perfil.email || "",
+  edad: perfil.edad || "",
+  pais: perfil.pais || "",
+  condicion: perfil.condicion || "",
+});
+
+const cargarPerfilGuardado = (): Perfil | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(PERFIL_STORAGE_KEY);
+    if (!raw) return null;
+    const perfil = normalizarPerfil(JSON.parse(raw));
+    return emailValido(perfil.email) ? perfil : null;
+  } catch {
+    return null;
+  }
+};
+
+const guardarSesionLocal = (perfil: Perfil, status?: SubscriptionStatus) => {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(PERFIL_STORAGE_KEY, JSON.stringify(normalizarPerfil(perfil)));
+  if (status) {
+    window.localStorage.setItem(SUBSCRIPTION_STORAGE_KEY, status);
+  }
+};
+
+const normalizarSubscriptionStatus = (status: string | null | undefined): SubscriptionStatus => {
+  if (status === "active" || status === "past_due" || status === "canceled" || status === "inactive") {
+    return status;
+  }
+
+  return "inactive";
+};
+
+const mezclarPerfiles = (base: Perfil, preferido: Perfil): Perfil => ({
+  nombre: preferido.nombre || base.nombre,
+  email: preferido.email || base.email,
+  edad: preferido.edad || base.edad,
+  pais: preferido.pais || base.pais,
+  condicion: preferido.condicion || base.condicion,
+});
+
+async function consultarCuenta(email: string): Promise<{ perfil: Perfil; subscriptionStatus: SubscriptionStatus } | null> {
+  try {
+    const res = await fetch(`/api/account?email=${encodeURIComponent(email)}`);
+    if (!res.ok) return null;
+
+    const data = await res.json();
+    if (!data.account?.email) return null;
+
+    return {
+      perfil: normalizarPerfil({
+        nombre: data.account.nombre || "",
+        email: data.account.email,
+        edad: data.account.edad ? String(data.account.edad) : "",
+        pais: data.account.pais || "",
+        condicion: data.account.condicion || "",
+      }),
+      subscriptionStatus: normalizarSubscriptionStatus(data.account.subscription_status),
+    };
+  } catch {
+    return null;
+  }
+}
 
 async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   try {
@@ -761,7 +835,17 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+const ChatView = ({
+  perfil,
+  onSubscribe,
+  subscribing,
+  subscriptionStatus,
+}: {
+  perfil: Perfil;
+  onSubscribe: () => void;
+  subscribing: boolean;
+  subscriptionStatus: SubscriptionStatus;
+}) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
   ]);
@@ -821,38 +905,40 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         </div>
       </div>
 
-      <div
-        style={{
-          background: "rgba(184,146,42,0.08)",
-          borderBottom: `1px solid ${T.border}`,
-          padding: "11px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
-        <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
+      {subscriptionStatus !== "active" && (
+        <div
           style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
-            borderRadius: "999px",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
+            background: "rgba(184,146,42,0.08)",
+            borderBottom: `1px solid ${T.border}`,
+            padding: "11px 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
           }}
         >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
-        </button>
-      </div>
+          <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
+          <button
+            onClick={onSubscribe}
+            disabled={subscribing}
+            className="btn btn-primary"
+            style={{
+              padding: "9px 18px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: subscribing ? "wait" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
+          </button>
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ maxWidth: "760px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -961,18 +1047,61 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 
 export default function App() {
   const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
-  const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+  const [perfil, setPerfil] = useState<Perfil>(perfilVacio);
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus>("unknown");
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const pagoExitoso = params.get("success") === "true";
+    const perfilGuardado = cargarPerfilGuardado();
+
+    if (perfilGuardado) {
+      setPerfil(perfilGuardado);
+      const statusGuardado = window.localStorage.getItem(SUBSCRIPTION_STORAGE_KEY) as SubscriptionStatus | null;
+      if (statusGuardado) setSubscriptionStatus(statusGuardado);
+    }
+
+    if (pagoExitoso) {
+      setSubscriptionStatus("active");
+      if (perfilGuardado) guardarSesionLocal(perfilGuardado, "active");
       setScreen("success");
       window.history.replaceState({}, "", "/");
+      return;
+    }
+
+    if (perfilGuardado) {
+      setScreen("chat");
     }
   }, []);
 
+  useEffect(() => {
+    if (!emailValido(perfil.email)) return;
+
+    let cancelado = false;
+    consultarCuenta(perfil.email).then((cuenta) => {
+      if (cancelado || !cuenta) return;
+
+      const statusParaGuardar =
+        subscriptionStatus === "active" && cuenta.subscriptionStatus === "inactive" ? "active" : cuenta.subscriptionStatus;
+      setSubscriptionStatus(statusParaGuardar);
+      setPerfil((actual) => {
+        const actualizado = mezclarPerfiles(cuenta.perfil, actual);
+        guardarSesionLocal(actualizado, statusParaGuardar);
+        return actualizado;
+      });
+    });
+
+    return () => {
+      cancelado = true;
+    };
+  }, [perfil.email, subscriptionStatus]);
+
   const irACheckout = async (p: Perfil) => {
+    guardarSesionLocal(p);
     setRedirecting(true);
     const url = await iniciarCheckout(p);
     if (url) {
@@ -985,6 +1114,7 @@ export default function App() {
 
   const completarOnboarding = (p: Perfil) => {
     setPerfil(p);
+    guardarSesionLocal(p);
     if (intent === "subscribe") {
       irACheckout(p);
     } else {
@@ -997,6 +1127,10 @@ export default function App() {
       {screen === "landing" && (
         <Landing
           onStart={() => {
+            if (perfil.email) {
+              setScreen("chat");
+              return;
+            }
             setIntent("chat");
             setScreen("onboarding");
           }}
@@ -1011,13 +1145,14 @@ export default function App() {
         <ChatView
           perfil={perfil}
           subscribing={redirecting}
+          subscriptionStatus={subscriptionStatus}
           onSubscribe={() => {
             setIntent("subscribe");
             irACheckout(perfil);
           }}
         />
       )}
-      {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
+      {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.email ? "chat" : "onboarding")} />}
     </>
   );
 }

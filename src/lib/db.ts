@@ -13,6 +13,15 @@ export type UsuarioBasico = {
   condicion?: string;
 };
 
+export type CuentaUsuario = {
+  nombre: string;
+  email: string;
+  edad: number | null;
+  pais: string | null;
+  condicion: string | null;
+  subscription_status: string | null;
+};
+
 // Crea o actualiza el usuario por correo y devuelve su id.
 export async function upsertUsuario(perfil: UsuarioBasico): Promise<string> {
   const edad = perfil.edad && /^\d+$/.test(perfil.edad.trim())
@@ -76,4 +85,23 @@ export async function marcarPorCustomerId(
     update subscriptions set status = ${status}
     where stripe_customer_id = ${stripeCustomerId}
   `;
+}
+
+// Recupera el perfil y la suscripcion asociada a un correo.
+export async function obtenerCuentaPorEmail(email: string): Promise<CuentaUsuario | null> {
+  const filas = await db.sql<CuentaUsuario>`
+    select
+      u.nombre,
+      u.email,
+      u.edad,
+      u.pais,
+      u.condicion,
+      s.status as subscription_status
+    from users u
+    left join subscriptions s on s.user_id = u.id
+    where lower(u.email) = lower(${email})
+    limit 1
+  `;
+
+  return filas[0] || null;
 }
