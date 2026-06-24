@@ -194,6 +194,9 @@ h3 {
     grid-template-columns: 1fr !important;
     gap: 36px !important;
   }
+  .credential-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

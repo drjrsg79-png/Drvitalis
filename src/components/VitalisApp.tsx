@@ -187,9 +187,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             <span style={{ fontStyle: "italic", color: T.goldDark }}>con un especialista a tu lado</span>
           </h1>
           <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 30px", maxWidth: "540px" }}>
-            El Dr. Vitalis es un urólogo guiado por inteligencia artificial que entiende tu caso, te orienta de forma
-            privada y te acompaña con un protocolo a tu medida: medicamentos con dosis, ejercicios terapéuticos y
-            seguimiento real de tu progreso.
+            Vitalis combina inteligencia artificial con criterios médicos reales para brindar orientación discreta,
+            personalizada y disponible 24/7. La experiencia está creada y supervisada por el Dr. José Rogelio Sánchez
+            García.
           </p>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
@@ -206,23 +206,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
-            </button>
-            <button
-              onClick={onSubscribe}
-              className="btn btn-ghost"
-              style={{
-                padding: "15px 30px",
-                background: "transparent",
-                color: T.charcoal,
-                border: `1px solid ${T.charcoal}`,
-                borderRadius: "999px",
-                fontSize: "15px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Conocer el programa
+              Comenzar evaluación gratuita
             </button>
           </div>
           <div
@@ -243,6 +227,10 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
               </span>
             ))}
           </div>
+          <p style={{ fontSize: "13.5px", lineHeight: 1.58, color: T.muted, margin: "16px 0 0", maxWidth: "560px" }}>
+            La evaluación gratuita incluye una conversación inicial con el Dr. Vitalis para entender tu caso, sin costo y
+            sin compromiso de continuar.
+          </p>
         </div>
 
         {/* Hero conversation preview */}
@@ -333,6 +321,50 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         </div>
       </section>
 
+      {/* Credenciales verificables */}
+      <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "4px 24px 28px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 0.95fr) minmax(0, 1.05fr)",
+            gap: "28px",
+            alignItems: "center",
+            background: T.white,
+            border: `1px solid ${T.border}`,
+            borderRadius: "16px",
+            padding: "28px",
+          }}
+          className="credential-grid"
+        >
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.gold, marginBottom: "12px" }}>
+              Respaldo médico verificable
+            </div>
+            <h2 style={{ fontFamily: display, fontSize: "30px", fontWeight: 600, color: T.charcoal, margin: "0 0 12px", lineHeight: 1.15 }}>
+              Dr. José Rogelio Sánchez García
+            </h2>
+            <p style={{ fontSize: "14px", lineHeight: 1.6, color: T.muted, margin: 0 }}>
+              15 años de experiencia clínica en atención médica y protocolos personalizados.
+            </p>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {[
+              ["Médico Cirujano", "Cédula profesional: 4273375"],
+              ["Especialidad en Medicina Interna / Terapia Intensiva", "Cédula de especialidad: 6525546"],
+              ["Diplomado en Andrología", "Formación enfocada en salud sexual masculina"],
+            ].map(([title, detail]) => (
+              <div key={title} style={{ borderLeft: `3px solid ${T.teal}`, paddingLeft: "14px" }}>
+                <div style={{ fontSize: "14px", fontWeight: 800, color: T.charcoal }}>{title}</div>
+                <div style={{ fontSize: "13px", color: T.muted, marginTop: "3px" }}>{detail}</div>
+              </div>
+            ))}
+            <p style={{ fontSize: "13.5px", lineHeight: 1.58, color: T.ink, margin: "4px 0 0" }}>
+              La supervisión clínica de Vitalis está a cargo de un médico certificado, no de un algoritmo sin respaldo.
+            </p>
+          </div>
+        </div>
+      </section>
+
       {/* Qué ofrecemos — numbered editorial cards */}
       <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "30px 24px 20px" }}>
         <div style={{ maxWidth: "560px", marginBottom: "30px" }}>
@@ -346,7 +378,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "18px" }}>
           {[
             ["01", "Consulta privada 24/7", "Conversa con el Dr. Vitalis cuando lo necesites. Respuestas claras, en español y con tono médico profesional."],
-            ["02", "Protocolo personalizado", "Según tu edad, país y condición, recibes un plan con medicamentos, dosis exactas y ejercicios terapéuticos."],
+            ["02", "Protocolo personalizado", "Según tu edad, país y condición, recibes un plan informativo con orientación sobre medicamentos de referencia y ejercicios terapéuticos, siempre como apoyo a tu valoración médica."],
             ["03", "Seguimiento de adherencia", "Lleva el control de ejercicios completados y dosis tomadas para mejorar tus resultados con el tiempo."],
           ].map(([n, t, d]) => (
             <div
@@ -424,7 +456,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "18px" }}>
           {[
             ["Por fin pude hablar de algo que llevaba años evitando. Sin pena y a mi ritmo.", "Andrés M.", "41 años · Guadalajara"],
-            ["El protocolo fue claro: qué tomar, cuánto y por cuánto tiempo. Noté cambios en semanas.", "Roberto V.", "53 años · Monterrey"],
+            ["La orientación fue clara y prudente. Entendí mejor mis opciones antes de hablarlo en consulta.", "Roberto V.", "53 años · Monterrey"],
             ["Tener respuestas a las 2 de la mañana, sin sentirme juzgado, cambió todo para mí.", "Diego H.", "36 años · CDMX"],
           ].map(([quote, name, meta]) => (
             <figure
@@ -474,7 +506,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             Acceso completo al Dr. Vitalis, protocolo personalizado y seguimiento. Cancela cuando quieras.
           </p>
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 26px", textAlign: "left", display: "flex", flexDirection: "column", gap: "12px" }}>
-            {["Consultas ilimitadas 24/7", "Medicamentos con dosis exactas", "Ejercicios terapéuticos guiados", "Seguimiento de tu progreso"].map((f) => (
+            {["Consultas ilimitadas 24/7", "Orientación sobre medicamentos de referencia", "Ejercicios terapéuticos guiados", "Seguimiento de tu progreso"].map((f) => (
               <li key={f} style={{ display: "flex", gap: "11px", alignItems: "center", fontSize: "14px", color: T.ink }}>
                 <span
                   style={{
@@ -526,6 +558,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           {[
             ["¿Mis conversaciones son privadas?", "Sí. Lo que compartes con el Dr. Vitalis es confidencial y tu información se mantiene protegida en todo momento."],
             ["¿El Dr. Vitalis sustituye a mi médico?", "No. Vitalis te orienta y te acompaña, pero no reemplaza una valoración presencial ni la atención de urgencias."],
+            ["¿Vitalis puede recetarme medicamentos?", "No. El Dr. Vitalis ofrece orientación y protocolos informativos basados en criterios médicos, pero cualquier medicamento debe confirmarse con un médico en consulta presencial antes de iniciarlo. Vitalis no sustituye una receta médica."],
             ["¿Puedo cancelar cuando quiera?", "Por supuesto. La suscripción es mensual y puedes cancelarla en cualquier momento, sin penalizaciones."],
             ["¿Cómo se realiza el cobro?", `El cobro de ${PRECIO} al mes se procesa de forma segura a través de Stripe.`],
           ].map(([q, a]) => (
