@@ -81,6 +81,111 @@ const Header = () => (
   </div>
 );
 
+const DoctorPortrait = ({ compact = false }: { compact?: boolean }) => (
+  <div
+    aria-hidden
+    style={{
+      position: "relative",
+      width: compact ? "76px" : "116px",
+      height: compact ? "76px" : "116px",
+      borderRadius: compact ? "24px" : "32px",
+      background: `linear-gradient(150deg, ${T.creamDeep}, #ffffff)`,
+      border: `1px solid ${T.border}`,
+      boxShadow: "0 18px 42px -28px rgba(27,27,29,0.55)",
+      overflow: "hidden",
+      flexShrink: 0,
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        inset: compact ? "9px 9px auto" : "14px 14px auto",
+        height: compact ? "28px" : "42px",
+        borderRadius: "999px 999px 42px 42px",
+        background: T.charcoal,
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        top: compact ? "26px" : "42px",
+        left: "50%",
+        width: compact ? "34px" : "50px",
+        height: compact ? "34px" : "50px",
+        transform: "translateX(-50%)",
+        borderRadius: "999px",
+        background: "#d8b896",
+        border: `3px solid ${T.white}`,
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        left: compact ? "13px" : "18px",
+        right: compact ? "13px" : "18px",
+        bottom: compact ? "-18px" : "-26px",
+        height: compact ? "48px" : "72px",
+        borderRadius: "999px 999px 18px 18px",
+        background: T.charcoal,
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        left: "50%",
+        bottom: compact ? "8px" : "12px",
+        width: compact ? "28px" : "42px",
+        height: compact ? "28px" : "42px",
+        transform: "translateX(-50%)",
+        borderRadius: "999px",
+        background: T.white,
+        color: T.goldDark,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: display,
+        fontSize: compact ? "13px" : "18px",
+        fontWeight: 700,
+        border: `1px solid ${T.border}`,
+      }}
+    >
+      JS
+    </div>
+  </div>
+);
+
+const DoctorCredential = ({ compact = false }: { compact?: boolean }) => (
+  <div
+    style={{
+      display: "flex",
+      gap: compact ? "14px" : "18px",
+      alignItems: "center",
+      maxWidth: compact ? "100%" : "560px",
+      padding: compact ? "14px" : "18px",
+      background: "rgba(255,255,255,0.74)",
+      border: `1px solid ${T.border}`,
+      borderRadius: "18px",
+      boxShadow: compact ? "none" : "0 18px 48px -38px rgba(27,27,29,0.5)",
+    }}
+  >
+    <DoctorPortrait compact={compact} />
+    <div>
+      <div style={{ fontSize: compact ? "13px" : "14px", color: T.goldDark, fontWeight: 800, marginBottom: "4px" }}>
+        Creado y supervisado por
+      </div>
+      <div style={{ fontFamily: display, fontSize: compact ? "20px" : "24px", lineHeight: 1.08, color: T.charcoal, fontWeight: 600 }}>
+        Dr. José Rogelio Sánchez García
+      </div>
+      <div style={{ fontSize: compact ? "12.5px" : "13.5px", color: T.ink, fontWeight: 700, marginTop: "7px", lineHeight: 1.45 }}>
+        Medicina Interna / Terapia Intensiva / Andrología
+      </div>
+      <div style={{ fontSize: compact ? "12px" : "13px", color: T.muted, marginTop: "5px", lineHeight: 1.5 }}>
+        15 años de experiencia en atención médica y protocolos personalizados.
+      </div>
+    </div>
+  </div>
+);
+
 const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: () => void }) => (
   <div style={{ minHeight: "100vh", background: T.cream, color: T.ink }}>
     {/* Atmospheric backdrop */}
@@ -172,10 +277,13 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             <span style={{ fontStyle: "italic", color: T.goldDark }}>con un especialista a tu lado</span>
           </h1>
           <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 30px", maxWidth: "540px" }}>
-            El Dr. Vitalis es un urólogo guiado por inteligencia artificial que entiende tu caso, te orienta de forma
-            privada y te acompaña con un protocolo a tu medida: medicamentos con dosis, ejercicios terapéuticos y
-            seguimiento real de tu progreso.
+            Vitalis combina inteligencia artificial con criterios médicos reales para brindar orientación discreta,
+            personalizada y disponible 24/7. La experiencia está creada y supervisada por el Dr. José Rogelio Sánchez
+            García.
           </p>
+          <div style={{ margin: "0 0 28px" }}>
+            <DoctorCredential />
+          </div>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               onClick={onStart}
@@ -247,7 +355,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 <div style={{ fontSize: "14px", fontWeight: 700, color: T.charcoal }}>Dr. Vitalis</div>
                 <div style={{ fontSize: "11px", color: T.teal, display: "flex", alignItems: "center", gap: "5px" }}>
                   <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
-                  En línea
+                  IA clínica supervisada
                 </div>
               </div>
             </div>
@@ -279,8 +387,8 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                   border: `1px solid ${T.border}`,
                 }}
               >
-                Entiendo perfectamente, y es completamente confidencial. Cuénteme desde cuándo lo nota y revisemos juntos
-                las opciones, paso a paso.
+                Entiendo perfectamente, y es completamente confidencial. La orientación sigue criterios médicos reales
+                definidos por el Dr. José Rogelio Sánchez García.
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "5px", paddingLeft: "4px", paddingTop: "2px" }}>
                 <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
@@ -307,7 +415,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         >
           {[
             ["Privacidad ante todo", "Tus conversaciones son confidenciales y tu información se mantiene protegida."],
-            ["Criterio clínico", "Orientación con tono médico profesional, fundamentada y sin juicios."],
+            ["Médico real detrás", "Creado y supervisado por el Dr. José Rogelio Sánchez García, con experiencia clínica."],
             ["Atención inmediata", "Respuestas claras a cualquier hora, sin salas de espera ni agendas."],
           ].map(([t, d]) => (
             <div key={t} style={{ background: T.cream, padding: "20px 22px" }}>
@@ -315,6 +423,38 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
               <div style={{ fontSize: "13px", lineHeight: 1.5, color: T.muted }}>{d}</div>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Respaldo médico */}
+      <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "22px 24px 18px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 0.9fr) minmax(0, 1.1fr)",
+            gap: "30px",
+            alignItems: "center",
+            background: T.charcoal,
+            color: T.white,
+            borderRadius: "20px",
+            padding: "28px",
+          }}
+          className="doctor-grid"
+        >
+          <DoctorCredential compact />
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.gold, marginBottom: "12px" }}>
+              Respaldo clínico
+            </div>
+            <h2 style={{ fontFamily: display, fontSize: "30px", fontWeight: 600, color: T.white, margin: "0 0 12px", lineHeight: 1.15 }}>
+              No es un chatbot cualquiera: es una experiencia médica diseñada para generar confianza.
+            </h2>
+            <p style={{ fontSize: "15px", lineHeight: 1.65, color: "rgba(255,255,255,0.72)", margin: 0 }}>
+              En salud sexual masculina, la privacidad importa, pero también saber quién está detrás. Vitalis traduce la
+              experiencia clínica del Dr. José Rogelio Sánchez García en orientación clara, discreta y personalizada para
+              que el paciente entienda sus opciones antes de tomar decisiones.
+            </p>
+          </div>
         </div>
       </section>
 
