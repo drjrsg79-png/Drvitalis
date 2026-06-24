@@ -11,6 +11,13 @@ export type UsuarioBasico = {
   edad?: string;
   pais?: string;
   condicion?: string;
+  tiempoProblema?: string;
+  objetivo?: string;
+  medicamentos?: string;
+  alergias?: string;
+  presion?: string;
+  diabetes?: string;
+  cardio?: string;
 };
 
 // Crea o actualiza el usuario por correo y devuelve su id.
@@ -20,13 +27,49 @@ export async function upsertUsuario(perfil: UsuarioBasico): Promise<string> {
     : null;
 
   const filas = await db.sql<{ id: string }>`
-    insert into users (email, nombre, edad, pais, condicion)
-    values (${perfil.email}, ${perfil.nombre || null}, ${edad}, ${perfil.pais || null}, ${perfil.condicion || null})
+    insert into users (
+      email,
+      nombre,
+      edad,
+      pais,
+      condicion,
+      tiempo_problema,
+      objetivo,
+      medicamentos,
+      alergias,
+      presion,
+      diabetes,
+      cardio,
+      onboarding_completo
+    )
+    values (
+      ${perfil.email},
+      ${perfil.nombre || null},
+      ${edad},
+      ${perfil.pais || null},
+      ${perfil.condicion || null},
+      ${perfil.tiempoProblema || null},
+      ${perfil.objetivo || null},
+      ${perfil.medicamentos || null},
+      ${perfil.alergias || null},
+      ${perfil.presion || null},
+      ${perfil.diabetes || null},
+      ${perfil.cardio || null},
+      true
+    )
     on conflict (email) do update set
       nombre    = coalesce(excluded.nombre, users.nombre),
       edad      = coalesce(excluded.edad, users.edad),
       pais      = coalesce(excluded.pais, users.pais),
-      condicion = coalesce(excluded.condicion, users.condicion)
+      condicion = coalesce(excluded.condicion, users.condicion),
+      tiempo_problema = coalesce(excluded.tiempo_problema, users.tiempo_problema),
+      objetivo = coalesce(excluded.objetivo, users.objetivo),
+      medicamentos = coalesce(excluded.medicamentos, users.medicamentos),
+      alergias = coalesce(excluded.alergias, users.alergias),
+      presion = coalesce(excluded.presion, users.presion),
+      diabetes = coalesce(excluded.diabetes, users.diabetes),
+      cardio = coalesce(excluded.cardio, users.cardio),
+      onboarding_completo = true
     returning id
   `;
   return filas[0].id;

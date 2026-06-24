@@ -6,7 +6,20 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
 export async function POST(req: NextRequest) {
   try {
-    const { email, nombre, edad, pais, condicion } = await req.json();
+    const {
+      email,
+      nombre,
+      edad,
+      pais,
+      condicion,
+      tiempoProblema,
+      objetivo,
+      medicamentos,
+      alergias,
+      presion,
+      diabetes,
+      cardio,
+    } = await req.json();
     const rawUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:8889";
     // Stripe exige URLs absolutas con esquema. NEXT_PUBLIC_URL puede venir como
     // "drvitalis1.com" sin protocolo, así que se normaliza.
@@ -18,7 +31,20 @@ export async function POST(req: NextRequest) {
     let userId: string | null = null;
     if (email) {
       try {
-        userId = await upsertUsuario({ email, nombre, edad, pais, condicion });
+        userId = await upsertUsuario({
+          email,
+          nombre,
+          edad,
+          pais,
+          condicion,
+          tiempoProblema,
+          objetivo,
+          medicamentos,
+          alergias,
+          presion,
+          diabetes,
+          cardio,
+        });
         await asegurarSuscripcion(userId);
       } catch {
         userId = null;
