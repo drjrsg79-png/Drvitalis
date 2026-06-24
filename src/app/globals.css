@@ -196,6 +196,12 @@ h3 {
   }
 }
 
+@media (max-width: 520px) {
+  .two-col {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise,
   .fade {

@@ -22,6 +22,13 @@ type Perfil = {
   edad: string;
   pais: string;
   condicion: string;
+  tiempoProblema: string;
+  objetivo: string;
+  medicamentos: string;
+  alergias: string;
+  presion: string;
+  diabetes: string;
+  cardio: string;
 };
 
 type Intent = "chat" | "subscribe";
@@ -42,6 +49,13 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
         edad: perfil.edad,
         pais: perfil.pais,
         condicion: perfil.condicion,
+        tiempoProblema: perfil.tiempoProblema,
+        objetivo: perfil.objetivo,
+        medicamentos: perfil.medicamentos,
+        alergias: perfil.alergias,
+        presion: perfil.presion,
+        diabetes: perfil.diabetes,
+        cardio: perfil.cardio,
       }),
     });
     const data = await res.json();
@@ -611,12 +625,30 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
   </div>
 );
 
+const perfilVacio: Perfil = {
+  nombre: "",
+  email: "",
+  edad: "",
+  pais: "",
+  condicion: "",
+  tiempoProblema: "",
+  objetivo: "",
+  medicamentos: "",
+  alergias: "",
+  presion: "",
+  diabetes: "",
+  cardio: "",
+};
+
 const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void }) => {
-  const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+  const [form, setForm] = useState<Perfil>(perfilVacio);
+  const [paso, setPaso] = useState<1 | 2>(1);
   const [touched, setTouched] = useState(false);
   const nombreOk = form.nombre.trim() !== "";
   const correoOk = emailValido(form.email);
-  const valido = nombreOk && correoOk;
+  const perfilOk = nombreOk && correoOk;
+  const testOk = form.tiempoProblema.trim() !== "" && form.objetivo.trim() !== "";
+  const valido = perfilOk && testOk;
 
   const inputBase = {
     width: "100%",
@@ -631,6 +663,13 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
 
   const submit = () => {
     setTouched(true);
+    if (paso === 1) {
+      if (perfilOk) {
+        setPaso(2);
+        setTouched(false);
+      }
+      return;
+    }
     if (valido && !loading) onComplete(form);
   };
 
@@ -664,66 +703,139 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
             margin: "20px 0 14px",
           }}
         >
-          {intent === "subscribe" ? "Paso final · Activar Vitalis Pro" : "Paso 1 de 2 · Tu perfil"}
+          {intent === "subscribe"
+            ? paso === 1
+              ? "Paso 1 de 2 · Datos de acceso"
+              : "Paso 2 de 2 · Test clínico"
+            : paso === 1
+              ? "Paso 1 de 2 · Tu perfil"
+              : "Paso 2 de 2 · Test clínico"}
         </div>
         <h2 style={{ fontFamily: display, fontSize: "27px", fontWeight: 600, color: T.charcoal, margin: "0 0 8px" }}>
-          Información personal
+          {paso === 1 ? "Información personal" : "Test inicial"}
         </h2>
         <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 26px", lineHeight: 1.55 }}>
-          {intent === "subscribe"
+          {paso === 2
+            ? "Responde estas preguntas antes de abrir la consulta para que el Dr. Vitalis no reutilice una evaluación anterior."
+            : intent === "subscribe"
             ? "Confirma tus datos para activar Vitalis Pro. El cobro se realiza de forma segura con Stripe."
             : "Confidencial. Nos ayuda a personalizar la orientación del Dr. Vitalis."}
         </p>
 
-        <div style={{ marginBottom: "14px" }}>
-          <input
-            className="field"
-            placeholder="Nombre"
-            value={form.nombre}
-            onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-            style={{ ...inputBase, borderColor: touched && !nombreOk ? "#C0492F" : T.border }}
-          />
-          {touched && !nombreOk && (
-            <div style={{ fontSize: "12px", color: "#C0492F", marginTop: "6px" }}>Indica tu nombre para continuar.</div>
-          )}
-        </div>
+        {paso === 1 ? (
+          <>
+            <div style={{ marginBottom: "14px" }}>
+              <input
+                className="field"
+                placeholder="Nombre"
+                value={form.nombre}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                style={{ ...inputBase, borderColor: touched && !nombreOk ? "#C0492F" : T.border }}
+              />
+              {touched && !nombreOk && (
+                <div style={{ fontSize: "12px", color: "#C0492F", marginTop: "6px" }}>Indica tu nombre para continuar.</div>
+              )}
+            </div>
 
-        <div style={{ marginBottom: "14px" }}>
-          <input
-            className="field"
-            placeholder="Correo electrónico"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            style={{ ...inputBase, borderColor: touched && !correoOk ? "#C0492F" : T.border }}
-          />
-          {touched && !correoOk && (
-            <div style={{ fontSize: "12px", color: "#C0492F", marginTop: "6px" }}>Escribe un correo electrónico válido.</div>
-          )}
-        </div>
+            <div style={{ marginBottom: "14px" }}>
+              <input
+                className="field"
+                placeholder="Correo electrónico"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                style={{ ...inputBase, borderColor: touched && !correoOk ? "#C0492F" : T.border }}
+              />
+              {touched && !correoOk && (
+                <div style={{ fontSize: "12px", color: "#C0492F", marginTop: "6px" }}>Escribe un correo electrónico válido.</div>
+              )}
+            </div>
 
-        <input
-          className="field"
-          placeholder="Edad"
-          inputMode="numeric"
-          value={form.edad}
-          onChange={(e) => setForm({ ...form, edad: e.target.value })}
-          style={{ ...inputBase, marginBottom: "14px" }}
-        />
-        <input
-          className="field"
-          placeholder="País"
-          value={form.pais}
-          onChange={(e) => setForm({ ...form, pais: e.target.value })}
-          style={{ ...inputBase, marginBottom: "14px" }}
-        />
-        <input
-          className="field"
-          placeholder="Condición o motivo de consulta"
-          value={form.condicion}
-          onChange={(e) => setForm({ ...form, condicion: e.target.value })}
-          style={{ ...inputBase, marginBottom: "20px" }}
-        />
+            <input
+              className="field"
+              placeholder="Edad"
+              inputMode="numeric"
+              value={form.edad}
+              onChange={(e) => setForm({ ...form, edad: e.target.value })}
+              style={{ ...inputBase, marginBottom: "14px" }}
+            />
+            <input
+              className="field"
+              placeholder="País"
+              value={form.pais}
+              onChange={(e) => setForm({ ...form, pais: e.target.value })}
+              style={{ ...inputBase, marginBottom: "14px" }}
+            />
+            <input
+              className="field"
+              placeholder="Condición o motivo de consulta"
+              value={form.condicion}
+              onChange={(e) => setForm({ ...form, condicion: e.target.value })}
+              style={{ ...inputBase, marginBottom: "20px" }}
+            />
+          </>
+        ) : (
+          <>
+            <select
+              className="field"
+              value={form.tiempoProblema}
+              onChange={(e) => setForm({ ...form, tiempoProblema: e.target.value })}
+              style={{ ...inputBase, marginBottom: "14px", borderColor: touched && !form.tiempoProblema ? "#C0492F" : T.border }}
+            >
+              <option value="">¿Desde cuándo ocurre?</option>
+              <option value="Menos de 1 mes">Menos de 1 mes</option>
+              <option value="1 a 6 meses">1 a 6 meses</option>
+              <option value="Más de 6 meses">Más de 6 meses</option>
+              <option value="Intermitente">Intermitente</option>
+            </select>
+            <select
+              className="field"
+              value={form.objetivo}
+              onChange={(e) => setForm({ ...form, objetivo: e.target.value })}
+              style={{ ...inputBase, marginBottom: "14px", borderColor: touched && !form.objetivo ? "#C0492F" : T.border }}
+            >
+              <option value="">Objetivo principal</option>
+              <option value="Mejorar erección">Mejorar erección</option>
+              <option value="Controlar eyaculación">Controlar eyaculación</option>
+              <option value="Aumentar deseo sexual">Aumentar deseo sexual</option>
+              <option value="Revisar tratamiento">Revisar tratamiento</option>
+            </select>
+            {touched && !testOk && (
+              <div style={{ fontSize: "12px", color: "#C0492F", margin: "-8px 0 12px" }}>Completa las dos primeras preguntas del test.</div>
+            )}
+            <input
+              className="field"
+              placeholder="Medicamentos actuales"
+              value={form.medicamentos}
+              onChange={(e) => setForm({ ...form, medicamentos: e.target.value })}
+              style={{ ...inputBase, marginBottom: "14px" }}
+            />
+            <input
+              className="field"
+              placeholder="Alergias conocidas"
+              value={form.alergias}
+              onChange={(e) => setForm({ ...form, alergias: e.target.value })}
+              style={{ ...inputBase, marginBottom: "14px" }}
+            />
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "20px" }} className="two-col">
+              <select className="field" value={form.presion} onChange={(e) => setForm({ ...form, presion: e.target.value })} style={inputBase}>
+                <option value="">Presión alta</option>
+                <option value="Sí">Sí</option>
+                <option value="No">No</option>
+              </select>
+              <select className="field" value={form.diabetes} onChange={(e) => setForm({ ...form, diabetes: e.target.value })} style={inputBase}>
+                <option value="">Diabetes</option>
+                <option value="Sí">Sí</option>
+                <option value="No">No</option>
+              </select>
+              <select className="field" value={form.cardio} onChange={(e) => setForm({ ...form, cardio: e.target.value })} style={{ ...inputBase, gridColumn: "1 / -1" }}>
+                <option value="">Problemas cardiacos</option>
+                <option value="Sí">Sí</option>
+                <option value="No">No</option>
+              </select>
+            </div>
+          </>
+        )}
 
         <button
           onClick={submit}
@@ -744,8 +856,12 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
           {loading
             ? "Redirigiendo a pago seguro..."
             : intent === "subscribe"
-              ? `Continuar al pago — ${PRECIO}/mes`
-              : "Continuar a la consulta"}
+              ? paso === 1
+                ? "Continuar al test"
+                : `Continuar al pago — ${PRECIO}/mes`
+              : paso === 1
+                ? "Continuar al test"
+                : "Continuar a la consulta"}
         </button>
         <p style={{ fontSize: "12px", color: T.muted, textAlign: "center", margin: "16px 0 0", lineHeight: 1.5 }}>
           Tu información es confidencial y se usa solo para personalizar tu acompañamiento.
@@ -783,7 +899,7 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: `Eres el Dr. Vitalis, urólogo especialista en salud sexual masculina. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Responde siempre en español, con tono médico profesional, claro y empático. No uses emojis.`,
+          systemPrompt: `Eres el Dr. Vitalis, urólogo especialista en salud sexual masculina. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Test inicial: tiempo del problema: ${perfil.tiempoProblema || "no indicado"}; objetivo: ${perfil.objetivo || "no indicado"}; medicamentos: ${perfil.medicamentos || "no indicados"}; alergias: ${perfil.alergias || "no indicadas"}; presión alta: ${perfil.presion || "no indicado"}; diabetes: ${perfil.diabetes || "no indicado"}; problemas cardiacos: ${perfil.cardio || "no indicado"}. Responde siempre en español, con tono médico profesional, claro y empático. No uses emojis.`,
           messages: newMsgs,
         }),
       });
@@ -961,7 +1077,7 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 
 export default function App() {
   const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
-  const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+  const [perfil, setPerfil] = useState<Perfil>(perfilVacio);
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
 
@@ -1009,6 +1125,7 @@ export default function App() {
       {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting} onComplete={completarOnboarding} />}
       {screen === "chat" && (
         <ChatView
+          key={perfil.email.trim().toLowerCase()}
           perfil={perfil}
           subscribing={redirecting}
           onSubscribe={() => {
