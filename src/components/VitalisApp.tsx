@@ -28,6 +28,7 @@ type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const PRECIO = "$599 MXN";
+const CEDULA_URL = "https://www.cedulaprofesional.sep.gob.mx/";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -78,6 +79,131 @@ const Header = () => (
     <span style={{ fontFamily: display, fontSize: "21px", fontWeight: 600, letterSpacing: "0.14em", color: T.charcoal }}>
       VITALIS
     </span>
+  </div>
+);
+
+const DoctorPortrait = ({ compact = false }: { compact?: boolean }) => (
+  <div
+    aria-hidden
+    style={{
+      position: "relative",
+      width: compact ? "76px" : "116px",
+      height: compact ? "76px" : "116px",
+      borderRadius: compact ? "24px" : "32px",
+      background: `linear-gradient(150deg, ${T.creamDeep}, #ffffff)`,
+      border: `1px solid ${T.border}`,
+      boxShadow: "0 18px 42px -28px rgba(27,27,29,0.55)",
+      overflow: "hidden",
+      flexShrink: 0,
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        inset: compact ? "9px 9px auto" : "14px 14px auto",
+        height: compact ? "28px" : "42px",
+        borderRadius: "999px 999px 42px 42px",
+        background: T.charcoal,
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        top: compact ? "26px" : "42px",
+        left: "50%",
+        width: compact ? "34px" : "50px",
+        height: compact ? "34px" : "50px",
+        transform: "translateX(-50%)",
+        borderRadius: "999px",
+        background: "#d8b896",
+        border: `3px solid ${T.white}`,
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        left: compact ? "13px" : "18px",
+        right: compact ? "13px" : "18px",
+        bottom: compact ? "-18px" : "-26px",
+        height: compact ? "48px" : "72px",
+        borderRadius: "999px 999px 18px 18px",
+        background: T.charcoal,
+      }}
+    />
+    <div
+      style={{
+        position: "absolute",
+        left: "50%",
+        bottom: compact ? "8px" : "12px",
+        width: compact ? "28px" : "42px",
+        height: compact ? "28px" : "42px",
+        transform: "translateX(-50%)",
+        borderRadius: "999px",
+        background: T.white,
+        color: T.goldDark,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontFamily: display,
+        fontSize: compact ? "13px" : "18px",
+        fontWeight: 700,
+        border: `1px solid ${T.border}`,
+      }}
+    >
+      JS
+    </div>
+  </div>
+);
+
+const DoctorCredential = ({ compact = false }: { compact?: boolean }) => (
+  <div
+    style={{
+      display: "flex",
+      gap: compact ? "14px" : "18px",
+      alignItems: "center",
+      maxWidth: compact ? "100%" : "560px",
+      padding: compact ? "14px" : "18px",
+      background: "rgba(255,255,255,0.74)",
+      border: `1px solid ${T.border}`,
+      borderRadius: "18px",
+      boxShadow: compact ? "none" : "0 18px 48px -38px rgba(27,27,29,0.5)",
+    }}
+  >
+    <DoctorPortrait compact={compact} />
+    <div>
+      <div style={{ fontSize: compact ? "13px" : "14px", color: T.goldDark, fontWeight: 800, marginBottom: "4px" }}>
+        Creado y supervisado por
+      </div>
+      <div style={{ fontFamily: display, fontSize: compact ? "20px" : "24px", lineHeight: 1.08, color: T.charcoal, fontWeight: 600 }}>
+        Dr. José Rogelio Sánchez García
+      </div>
+      <div style={{ fontSize: compact ? "12.5px" : "13.5px", color: T.ink, fontWeight: 700, marginTop: "7px", lineHeight: 1.45 }}>
+        Medicina Interna / Terapia Intensiva / Andrología
+      </div>
+      <div style={{ fontSize: compact ? "12px" : "13px", color: T.muted, marginTop: "5px", lineHeight: 1.5 }}>
+        15 años de experiencia en atención médica y protocolos personalizados.
+      </div>
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginTop: "10px" }}>
+        <a
+          href={CEDULA_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="link-quiet"
+          style={{ fontSize: compact ? "11.5px" : "12.5px", color: T.goldDark, fontWeight: 800, textDecoration: "none" }}
+        >
+          Ver cédula profesional
+        </a>
+        <a
+          href={CEDULA_URL}
+          target="_blank"
+          rel="noreferrer"
+          className="link-quiet"
+          style={{ fontSize: compact ? "11.5px" : "12.5px", color: T.goldDark, fontWeight: 800, textDecoration: "none" }}
+        >
+          Perfil médico verificable
+        </a>
+      </div>
+    </div>
   </div>
 );
 
@@ -155,7 +281,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             }}
           >
             <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.teal }} />
-            Salud sexual masculina con IA clínica
+            Test gratuito en 2 minutos · resultado inmediato
           </div>
           <h1
             style={{
@@ -172,10 +298,13 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             <span style={{ fontStyle: "italic", color: T.goldDark }}>con un especialista a tu lado</span>
           </h1>
           <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 30px", maxWidth: "540px" }}>
-            El Dr. Vitalis es un urólogo guiado por inteligencia artificial que entiende tu caso, te orienta de forma
-            privada y te acompaña con un protocolo a tu medida: medicamentos con dosis, ejercicios terapéuticos y
-            seguimiento real de tu progreso.
+            Vitalis combina inteligencia artificial con criterios médicos reales para brindar orientación discreta,
+            personalizada y disponible 24/7. La experiencia está creada y supervisada por el Dr. José Rogelio Sánchez
+            García.
           </p>
+          <div style={{ margin: "0 0 28px" }}>
+            <DoctorCredential />
+          </div>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               onClick={onStart}
@@ -191,7 +320,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
+              Comenzar evaluación gratuita
             </button>
             <button
               onClick={onSubscribe}
@@ -221,7 +350,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
               fontWeight: 600,
             }}
           >
-            {["Confidencial", "Sin esperas ni citas", "Disponible 24/7"].map((t) => (
+            {["2 minutos", "Sin pago inicial", "Resultado inmediato"].map((t) => (
               <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: "7px" }}>
                 <span style={{ color: T.teal, fontWeight: 800 }}>✓</span>
                 {t}
@@ -247,7 +376,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 <div style={{ fontSize: "14px", fontWeight: 700, color: T.charcoal }}>Dr. Vitalis</div>
                 <div style={{ fontSize: "11px", color: T.teal, display: "flex", alignItems: "center", gap: "5px" }}>
                   <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
-                  En línea
+                  IA clínica supervisada
                 </div>
               </div>
             </div>
@@ -264,7 +393,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                   lineHeight: 1.5,
                 }}
               >
-                Doctor, tengo dudas sobre un tratamiento y prefiero no ir a consulta presencial todavía.
+                Doctor, quiero saber si mis síntomas tienen señales de alerta antes de pagar una consulta.
               </div>
               <div
                 style={{
@@ -279,8 +408,8 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                   border: `1px solid ${T.border}`,
                 }}
               >
-                Entiendo perfectamente, y es completamente confidencial. Cuénteme desde cuándo lo nota y revisemos juntos
-                las opciones, paso a paso.
+                Empezamos con un test gratuito de 2 minutos. Te diré qué señales revisar y si conviene pasar a un plan
+                personalizado.
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "5px", paddingLeft: "4px", paddingTop: "2px" }}>
                 <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
@@ -307,13 +436,147 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         >
           {[
             ["Privacidad ante todo", "Tus conversaciones son confidenciales y tu información se mantiene protegida."],
-            ["Criterio clínico", "Orientación con tono médico profesional, fundamentada y sin juicios."],
-            ["Atención inmediata", "Respuestas claras a cualquier hora, sin salas de espera ni agendas."],
+            ["Autoridad verificable", "Consulta la cédula profesional y el respaldo médico antes de iniciar."],
+            ["Entrada inmediata", "Primero haces un test gratuito; solo pagas si quieres el programa completo."],
           ].map(([t, d]) => (
             <div key={t} style={{ background: T.cream, padding: "20px 22px" }}>
               <div style={{ fontSize: "14px", fontWeight: 800, color: T.charcoal, marginBottom: "6px" }}>{t}</div>
               <div style={{ fontSize: "13px", lineHeight: 1.5, color: T.muted }}>{d}</div>
             </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Lead magnet */}
+      <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "8px 24px 28px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr) minmax(280px, 0.72fr)",
+            gap: "22px",
+            alignItems: "stretch",
+            background: T.white,
+            border: `1px solid ${T.border}`,
+            borderRadius: "20px",
+            padding: "26px",
+          }}
+          className="lead-grid"
+        >
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.teal, marginBottom: "12px" }}>
+              Para empezar sin compromiso
+            </div>
+            <h2 style={{ fontFamily: display, fontSize: "31px", lineHeight: 1.12, fontWeight: 600, color: T.charcoal, margin: "0 0 12px" }}>
+              Test de 2 minutos: ¿tus síntomas requieren atención o seguimiento?
+            </h2>
+            <p style={{ fontSize: "15px", lineHeight: 1.62, color: T.muted, margin: "0 0 18px", maxWidth: "640px" }}>
+              Captura lo esencial de tu caso, recibe una primera orientación y deja tus datos para continuar cuando estés
+              listo. Es la puerta de entrada para quienes aún no quieren pagar en el primer clic.
+            </p>
+            <button
+              onClick={onStart}
+              className="btn btn-primary"
+              style={{
+                padding: "14px 26px",
+                background: T.teal,
+                color: T.white,
+                border: "none",
+                borderRadius: "999px",
+                fontSize: "14px",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              Hacer el test gratuito
+            </button>
+          </div>
+          <div
+            style={{
+              background: T.cream,
+              border: `1px solid ${T.border}`,
+              borderRadius: "16px",
+              padding: "20px",
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: "12px",
+            }}
+          >
+            {["¿La erección cambió en las últimas semanas?", "¿Hay ansiedad, medicamentos o cansancio involucrado?", "¿Quieres saber qué revisar antes de comprar un plan?"].map((q) => (
+              <div key={q} style={{ display: "flex", gap: "10px", alignItems: "flex-start", fontSize: "13.5px", lineHeight: 1.45, color: T.ink }}>
+                <span style={{ flexShrink: 0, width: "20px", height: "20px", borderRadius: "999px", background: "rgba(45,125,111,0.12)", color: T.teal, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "11px" }}>?</span>
+                {q}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Respaldo médico */}
+      <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "22px 24px 18px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 0.9fr) minmax(0, 1.1fr)",
+            gap: "30px",
+            alignItems: "center",
+            background: T.charcoal,
+            color: T.white,
+            borderRadius: "20px",
+            padding: "28px",
+          }}
+          className="doctor-grid"
+        >
+          <DoctorCredential compact />
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.gold, marginBottom: "12px" }}>
+              Respaldo clínico
+            </div>
+            <h2 style={{ fontFamily: display, fontSize: "30px", fontWeight: 600, color: T.white, margin: "0 0 12px", lineHeight: 1.15 }}>
+              No es un chatbot cualquiera: es una experiencia médica diseñada para generar confianza.
+            </h2>
+            <p style={{ fontSize: "15px", lineHeight: 1.65, color: "rgba(255,255,255,0.72)", margin: 0 }}>
+              En salud sexual masculina, la privacidad importa, pero también saber quién está detrás. Vitalis traduce la
+              experiencia clínica del Dr. José Rogelio Sánchez García en orientación clara, discreta y personalizada para
+              que el paciente entienda sus opciones antes de tomar decisiones.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Ángulos para anuncios */}
+      <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "24px 24px 18px" }}>
+        <div style={{ maxWidth: "620px", marginBottom: "22px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.gold, marginBottom: "12px" }}>
+            Si llegaste desde un anuncio
+          </div>
+          <h2 style={{ fontFamily: display, fontSize: "30px", fontWeight: 600, color: T.charcoal, margin: 0, lineHeight: 1.15 }}>
+            Entra por el problema que ya tienes en mente
+          </h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))", gap: "14px" }}>
+          {[
+            ["Me da pena hablarlo", "Orientación privada para empezar sin explicar tu caso en recepción."],
+            ["No sé si es ansiedad o algo físico", "Un primer filtro para ordenar síntomas, contexto y señales de alerta."],
+            ["Quiero mejorar sin perder tiempo", "Plan personalizado y seguimiento continuo cuando decides avanzar."],
+            ["Ya probé algo y no funcionó", "Revisión de hábitos, medicamentos y adherencia antes de improvisar otro intento."],
+          ].map(([t, d]) => (
+            <button
+              key={t}
+              onClick={onStart}
+              className="card-lift"
+              style={{
+                textAlign: "left",
+                background: T.creamDeep,
+                border: `1px solid ${T.border}`,
+                borderRadius: "14px",
+                padding: "20px",
+                cursor: "pointer",
+              }}
+            >
+              <div style={{ fontSize: "15px", fontWeight: 800, color: T.charcoal, marginBottom: "7px" }}>{t}</div>
+              <div style={{ fontSize: "13px", color: T.muted, lineHeight: 1.5 }}>{d}</div>
+            </button>
           ))}
         </div>
       </section>
@@ -361,8 +624,8 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {[
-            ["1", "Cuéntanos tu caso", "Completas un perfil breve y confidencial con tu información básica."],
-            ["2", "Habla con el Dr. Vitalis", "Recibes orientación inmediata sobre tu salud sexual, sin esperas ni citas."],
+            ["1", "Haz el test gratuito", "Respondes unas preguntas breves. Toma cerca de 2 minutos y no requiere pago."],
+            ["2", "Recibe una primera orientación", "El Dr. Vitalis ordena tus síntomas y te indica qué señales conviene revisar."],
             ["3", "Sigue tu protocolo", "Activas Vitalis para acceder a tu plan completo y al acompañamiento continuo."],
           ].map(([n, t, d]) => (
             <div
@@ -510,6 +773,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
           {[
             ["¿Mis conversaciones son privadas?", "Sí. Lo que compartes con el Dr. Vitalis es confidencial y tu información se mantiene protegida en todo momento."],
+            ["¿Qué pasa al comenzar la evaluación gratuita?", "Respondes un perfil breve, recibes orientación inicial inmediata y puedes continuar al chat sin pagar."],
+            ["¿Cuánto tarda el test inicial?", "Está diseñado para tomar cerca de 2 minutos si tienes claros tus síntomas principales."],
+            ["¿Puedo verificar al médico detrás de Vitalis?", "Sí. La página incluye acceso para consultar la cédula profesional en el registro oficial."],
             ["¿El Dr. Vitalis sustituye a mi médico?", "No. Vitalis te orienta y te acompaña, pero no reemplaza una valoración presencial ni la atención de urgencias."],
             ["¿Puedo cancelar cuando quiera?", "Por supuesto. La suscripción es mensual y puedes cancelarla en cualquier momento, sin penalizaciones."],
             ["¿Cómo se realiza el cobro?", `El cobro de ${PRECIO} al mes se procesa de forma segura a través de Stripe.`],

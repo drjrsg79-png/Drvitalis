@@ -194,6 +194,16 @@ h3 {
     grid-template-columns: 1fr !important;
     gap: 36px !important;
   }
+
+  .doctor-grid {
+    grid-template-columns: 1fr !important;
+    padding: 22px !important;
+  }
+
+  .lead-grid {
+    grid-template-columns: 1fr !important;
+    padding: 22px !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
