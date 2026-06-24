@@ -13,6 +13,12 @@ export type UsuarioBasico = {
   condicion?: string;
 };
 
+export type UsuarioConSuscripcion = UsuarioBasico & {
+  id: string;
+  suscripcionActiva: boolean;
+  status: string | null;
+};
+
 // Crea o actualiza el usuario por correo y devuelve su id.
 export async function upsertUsuario(perfil: UsuarioBasico): Promise<string> {
   const edad = perfil.edad && /^\d+$/.test(perfil.edad.trim())
@@ -30,6 +36,46 @@ export async function upsertUsuario(perfil: UsuarioBasico): Promise<string> {
     returning id
   `;
   return filas[0].id;
+}
+
+// Busca un usuario por correo y devuelve si tiene acceso vigente.
+export async function obtenerUsuarioPorEmail(email: string): Promise<UsuarioConSuscripcion | null> {
+  const filas = await db.sql<{
+    id: string;
+    nombre: string | null;
+    email: string;
+    edad: number | null;
+    pais: string | null;
+    condicion: string | null;
+    status: string | null;
+  }>`
+    select
+      users.id,
+      users.nombre,
+      users.email,
+      users.edad,
+      users.pais,
+      users.condicion,
+      subscriptions.status
+    from users
+    left join subscriptions on subscriptions.user_id = users.id
+    where lower(users.email) = lower(${email})
+    limit 1
+  `;
+
+  const usuario = filas[0];
+  if (!usuario) return null;
+
+  return {
+    id: usuario.id,
+    nombre: usuario.nombre || "",
+    email: usuario.email,
+    edad: usuario.edad ? String(usuario.edad) : "",
+    pais: usuario.pais || "",
+    condicion: usuario.condicion || "",
+    status: usuario.status,
+    suscripcionActiva: usuario.status === "active" || usuario.status === "trialing",
+  };
 }
 
 // Garantiza una fila de suscripción para el usuario (estado inicial 'inactive').
