@@ -1,5 +1,14 @@
 'use client';
 import { useState, useRef, useEffect } from "react";
+import {
+  login,
+  signup,
+  logout,
+  getUser,
+  handleAuthCallback,
+  AuthError,
+  MissingIdentityError,
+} from "@netlify/identity";
 
 const T = {
   cream: "#FAF8F5",
@@ -24,6 +33,7 @@ type Perfil = {
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const PRECIO = "$599 MXN";
+const PERFIL_VACIO: Perfil = { nombre: "", email: "", edad: "", pais: "", condicion: "" };
 
 // Protocolo de ejercicios urológicos guiados. Cada ejercicio enlaza a su propio
 // video específico para dar un acompañamiento de alto valor. Sustituye cada URL
@@ -108,6 +118,32 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   }
 }
 
+// Consulta a la base de datos el perfil guardado y si la suscripción está activa.
+async function cargarCuenta(
+  email: string,
+): Promise<{ profile: Perfil | null; subscribed: boolean }> {
+  try {
+    const res = await fetch(`/api/account?email=${encodeURIComponent(email)}`);
+    if (!res.ok) return { profile: null, subscribed: false };
+    return await res.json();
+  } catch {
+    return { profile: null, subscribed: false };
+  }
+}
+
+// Guarda el perfil médico en la base de datos.
+async function guardarPerfil(perfil: Perfil, identityId?: string): Promise<void> {
+  try {
+    await fetch("/api/account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...perfil, identityId }),
+    });
+  } catch {
+    // El flujo continúa aunque falle el guardado; se reintenta en otra visita.
+  }
+}
+
 const Header = () => (
   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
     <div style={{ width: "30px", height: "30px", borderRadius: "6px", background: T.gold, display: "flex", alignItems: "center", justifyContent: "center", color: T.white, fontWeight: 700, fontSize: "16px" }}>V</div>
@@ -115,11 +151,14 @@ const Header = () => (
   </div>
 );
 
-const Landing = ({ onSubscribe }: { onSubscribe: () => void }) => (
+const Landing = ({ onSubscribe, onLogin }: { onSubscribe: () => void; onLogin: () => void }) => (
   <div style={{ minHeight: "100vh", background: T.cream, color: T.ink }}>
     <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "20px 24px", maxWidth: "1080px", margin: "0 auto" }}>
       <Header />
-      <button onClick={onSubscribe} style={{ padding: "9px 18px", background: T.gold, color: T.white, border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Activar Vitalis Pro</button>
+      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+        <button onClick={onLogin} style={{ padding: "9px 16px", background: "transparent", color: T.charcoal, border: `1px solid ${T.border}`, borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Iniciar sesión</button>
+        <button onClick={onSubscribe} style={{ padding: "9px 18px", background: T.gold, color: T.white, border: "none", borderRadius: "6px", fontSize: "13px", fontWeight: 600, cursor: "pointer" }}>Activar Vitalis Pro</button>
+      </div>
     </header>
 
     {/* Hero: quiénes somos y qué hacemos */}
@@ -132,7 +171,7 @@ const Landing = ({ onSubscribe }: { onSubscribe: () => void }) => (
       <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
         <button onClick={onSubscribe} style={{ padding: "14px 30px", background: T.gold, color: T.white, border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer" }}>Activar Vitalis Pro — {PRECIO}/mes</button>
       </div>
-      <p style={{ fontSize: "13px", color: T.muted, marginTop: "16px" }}>Acceso completo al Dr. Vitalis y a tu protocolo. Cancela cuando quieras.</p>
+      <p style={{ fontSize: "13px", color: T.muted, marginTop: "16px" }}>Crea tu cuenta, activa el acceso completo al Dr. Vitalis y a tu protocolo. Cancela cuando quieras.</p>
     </section>
 
     {/* Qué hacemos */}
@@ -157,9 +196,9 @@ const Landing = ({ onSubscribe }: { onSubscribe: () => void }) => (
       <h2 style={{ fontSize: "26px", fontWeight: 800, color: T.charcoal, textAlign: "center", margin: "0 0 28px" }}>Cómo funciona</h2>
       <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         {[
-          ["1", "Activa tu suscripción", "Confirma tus datos y completas el pago seguro con Stripe para desbloquear Vitalis Pro."],
-          ["2", "Habla con el Dr. Vitalis", "Recibes orientación inmediata sobre tu salud sexual, sin esperas ni citas."],
-          ["3", "Sigue tu protocolo", "Accedes a tu plan completo con ejercicios guiados en video y acompañamiento continuo."],
+          ["1", "Crea tu cuenta", "Regístrate con tu correo y contraseña para tener un acceso seguro y privado a tu historial."],
+          ["2", "Activa tu suscripción", "Completas el pago seguro con Stripe para desbloquear Vitalis Pro."],
+          ["3", "Sigue tu protocolo", "Hablas con el Dr. Vitalis y accedes a tu plan completo con ejercicios guiados en video."],
         ].map(([n, t, d]) => (
           <div key={n} style={{ display: "flex", gap: "16px", alignItems: "flex-start", background: T.white, border: `1px solid ${T.border}`, borderRadius: "10px", padding: "18px 20px" }}>
             <div style={{ flexShrink: 0, width: "32px", height: "32px", borderRadius: "999px", background: T.charcoal, color: T.white, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: "14px" }}>{n}</div>
@@ -195,6 +234,107 @@ const Landing = ({ onSubscribe }: { onSubscribe: () => void }) => (
   </div>
 );
 
+// Pantalla de autenticación con Netlify Identity (registro e inicio de sesión).
+const AuthScreen = ({
+  modoInicial,
+  onAuthenticated,
+  onBack,
+}: {
+  modoInicial: "login" | "signup";
+  onAuthenticated: (email: string, identityId: string) => void;
+  onBack: () => void;
+}) => {
+  const [modo, setModo] = useState<"login" | "signup">(modoInicial);
+  const [nombre, setNombre] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [aviso, setAviso] = useState("");
+
+  const inputStyle = { width: "100%", padding: "12px", marginBottom: "14px", border: `1px solid ${T.border}`, borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" as const, background: T.white };
+
+  const enviar = async () => {
+    setError("");
+    setAviso("");
+    if (!email.trim() || !password.trim() || (modo === "signup" && !nombre.trim())) {
+      setError("Completa todos los campos.");
+      return;
+    }
+    setLoading(true);
+    try {
+      if (modo === "signup") {
+        const user = await signup(email.trim(), password, { full_name: nombre.trim() });
+        if (user.confirmedAt) {
+          onAuthenticated(user.email || email.trim(), user.id || "");
+        } else {
+          setAviso("Cuenta creada. Revisa tu correo para confirmarla y luego inicia sesión.");
+          setModo("login");
+        }
+      } else {
+        const user = await login(email.trim(), password);
+        onAuthenticated(user.email || email.trim(), user.id || "");
+      }
+    } catch (e) {
+      if (e instanceof MissingIdentityError) {
+        setError("La autenticación no está disponible en este entorno. Usa el sitio publicado.");
+      } else if (e instanceof AuthError) {
+        if (e.status === 401) setError("Correo o contraseña incorrectos.");
+        else if (e.status === 403) setError("El registro está cerrado. Contacta al equipo de Vitalis.");
+        else if (e.status === 422) setError("Datos inválidos. Revisa el correo y usa una contraseña más segura.");
+        else if (e.status === 400) setError("Confirma tu correo antes de iniciar sesión.");
+        else setError(e.message);
+      } else {
+        setError("No se pudo completar la operación. Intenta de nuevo.");
+      }
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", background: T.cream }}>
+      <div style={{ maxWidth: "400px", width: "100%" }}>
+        <div style={{ marginBottom: "8px" }}><Header /></div>
+        <h2 style={{ fontSize: "24px", fontWeight: 800, color: T.charcoal, margin: "18px 0 6px" }}>
+          {modo === "signup" ? "Crea tu cuenta" : "Inicia sesión"}
+        </h2>
+        <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 24px" }}>
+          {modo === "signup"
+            ? "Tu acceso a Vitalis es privado y seguro. Con tu cuenta guardamos tu perfil y tu suscripción."
+            : "Accede a tu consulta con el Dr. Vitalis y a tu protocolo."}
+        </p>
+
+        {modo === "signup" && (
+          <input placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} style={inputStyle} />
+        )}
+        <input placeholder="Correo electrónico" type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={inputStyle} />
+        <input placeholder="Contraseña" type="password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") enviar(); }} style={inputStyle} />
+
+        {error && <div style={{ fontSize: "13px", color: "#B23A2A", marginBottom: "12px" }}>{error}</div>}
+        {aviso && <div style={{ fontSize: "13px", color: T.teal, marginBottom: "12px" }}>{aviso}</div>}
+
+        <button
+          onClick={enviar}
+          disabled={loading}
+          style={{ width: "100%", padding: "14px", background: loading ? T.border : T.gold, color: T.white, border: "none", borderRadius: "8px", cursor: loading ? "not-allowed" : "pointer", fontSize: "15px", fontWeight: 700 }}
+        >
+          {loading ? "Procesando..." : modo === "signup" ? "Crear cuenta" : "Entrar"}
+        </button>
+
+        <div style={{ textAlign: "center", marginTop: "18px", fontSize: "13px", color: T.muted }}>
+          {modo === "signup" ? "¿Ya tienes cuenta?" : "¿No tienes cuenta?"}{" "}
+          <button onClick={() => { setModo(modo === "signup" ? "login" : "signup"); setError(""); setAviso(""); }} style={{ background: "none", border: "none", color: T.goldDark, fontWeight: 700, cursor: "pointer", fontSize: "13px", padding: 0 }}>
+            {modo === "signup" ? "Inicia sesión" : "Crea una"}
+          </button>
+        </div>
+        <div style={{ textAlign: "center", marginTop: "10px" }}>
+          <button onClick={onBack} style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", fontSize: "13px" }}>← Volver al inicio</button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
   <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px", background: T.cream, textAlign: "center" }}>
     <div style={{ width: "56px", height: "56px", borderRadius: "999px", background: T.teal, color: T.white, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", fontWeight: 800, marginBottom: "24px" }}>✓</div>
@@ -204,8 +344,8 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
   </div>
 );
 
-const Onboarding = ({ subscribed, loading, onComplete }: { subscribed: boolean; loading: boolean; onComplete: (p: Perfil) => void }) => {
-  const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+const Onboarding = ({ inicial, subscribed, loading, onComplete }: { inicial: Perfil; subscribed: boolean; loading: boolean; onComplete: (p: Perfil) => void }) => {
+  const [form, setForm] = useState<Perfil>(inicial);
   const valido = form.nombre.trim() !== "" && form.email.trim() !== "";
   const inputStyle = { width: "100%", padding: "12px", marginBottom: "14px", border: `1px solid ${T.border}`, borderRadius: "6px", fontSize: "14px", boxSizing: "border-box" as const, background: T.white };
 
@@ -220,7 +360,7 @@ const Onboarding = ({ subscribed, loading, onComplete }: { subscribed: boolean; 
             : "Confirma tus datos para activar Vitalis Pro. El cobro se realiza de forma segura con Stripe."}
         </p>
         <input placeholder="Nombre" value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} style={inputStyle} />
-        <input placeholder="Correo electrónico" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} style={inputStyle} />
+        <input placeholder="Correo electrónico" type="email" value={form.email} readOnly style={{ ...inputStyle, background: "#F2EFEA", color: T.muted }} />
         <input placeholder="Edad" value={form.edad} onChange={(e) => setForm({ ...form, edad: e.target.value })} style={inputStyle} />
         <input placeholder="País" value={form.pais} onChange={(e) => setForm({ ...form, pais: e.target.value })} style={inputStyle} />
         <input placeholder="Condición o motivo de consulta" value={form.condicion} onChange={(e) => setForm({ ...form, condicion: e.target.value })} style={inputStyle} />
@@ -278,7 +418,7 @@ const Ejercicios = ({ onBack }: { onBack: () => void }) => (
   </div>
 );
 
-const ChatView = ({ perfil, onExercises }: { perfil: Perfil; onExercises: () => void }) => {
+const ChatView = ({ perfil, onExercises, onLogout }: { perfil: Perfil; onExercises: () => void; onLogout: () => void }) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
   ]);
@@ -320,7 +460,10 @@ const ChatView = ({ perfil, onExercises }: { perfil: Perfil; onExercises: () => 
             <div style={{ fontSize: "11px", color: T.teal }}>En línea</div>
           </div>
         </div>
-        <button onClick={onExercises} style={{ padding: "8px 16px", background: "transparent", color: T.charcoal, border: `1px solid ${T.border}`, borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Ejercicios guiados</button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <button onClick={onExercises} style={{ padding: "8px 16px", background: "transparent", color: T.charcoal, border: `1px solid ${T.border}`, borderRadius: "6px", fontSize: "12px", fontWeight: 700, cursor: "pointer", whiteSpace: "nowrap" }}>Ejercicios guiados</button>
+          <button onClick={onLogout} style={{ padding: "8px 16px", background: "transparent", color: T.muted, border: `1px solid ${T.border}`, borderRadius: "6px", fontSize: "12px", fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}>Salir</button>
+        </div>
       </div>
 
       <div style={{ background: "rgba(45,125,111,0.08)", borderBottom: `1px solid ${T.border}`, padding: "10px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
@@ -347,21 +490,58 @@ const ChatView = ({ perfil, onExercises }: { perfil: Perfil; onExercises: () => 
 };
 
 export default function App() {
-  const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "ejercicios" | "success">("landing");
-  const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+  const [screen, setScreen] = useState<"landing" | "auth" | "onboarding" | "chat" | "ejercicios" | "success">("landing");
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [perfil, setPerfil] = useState<Perfil>(PERFIL_VACIO);
+  const [identityId, setIdentityId] = useState("");
   const [subscribed, setSubscribed] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
+  // Al cargar: procesa los enlaces de confirmación de Netlify Identity, restaura
+  // la sesión si existe y reconcilia el regreso del pago de Stripe (?success=true).
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
-      setSubscribed(true);
-      setScreen("success");
-      window.history.replaceState({}, "", "/");
-    }
+    let activo = true;
+    (async () => {
+      try {
+        await handleAuthCallback();
+      } catch {
+        // Sin callback en la URL: carga normal.
+      }
+
+      const exito = typeof window !== "undefined" &&
+        new URLSearchParams(window.location.search).get("success") === "true";
+      if (exito && typeof window !== "undefined") {
+        window.history.replaceState({}, "", "/");
+      }
+
+      let user = null;
+      try {
+        user = await getUser();
+      } catch {
+        user = null;
+      }
+      if (!activo) return;
+
+      if (user?.email) {
+        setIdentityId(user.id || "");
+        const cuenta = await cargarCuenta(user.email);
+        if (!activo) return;
+        const base: Perfil = cuenta.profile || { ...PERFIL_VACIO, email: user.email, nombre: user.name || "" };
+        setPerfil({ ...base, email: user.email });
+        setSubscribed(cuenta.subscribed);
+        if (exito || cuenta.subscribed) {
+          setScreen(exito ? "success" : "chat");
+        } else {
+          setScreen("onboarding");
+        }
+      }
+    })();
+    return () => { activo = false; };
   }, []);
 
   const irACheckout = async (p: Perfil) => {
     setRedirecting(true);
+    await guardarPerfil(p, identityId);
     const url = await iniciarCheckout(p);
     if (url) {
       window.location.href = url;
@@ -371,25 +551,54 @@ export default function App() {
     }
   };
 
-  const completarOnboarding = (p: Perfil) => {
+  const completarOnboarding = async (p: Perfil) => {
     setPerfil(p);
-    // Sin suscripción activa no hay consulta: el onboarding lleva al pago de Stripe.
-    // Una vez confirmado el pago (success), el mismo formulario da acceso al chat.
     if (subscribed) {
+      await guardarPerfil(p, identityId);
       setScreen("chat");
     } else {
+      // Sin suscripción activa no hay consulta: el onboarding lleva al pago de Stripe.
       irACheckout(p);
     }
+  };
+
+  const trasAutenticar = async (email: string, id: string) => {
+    setIdentityId(id);
+    const cuenta = await cargarCuenta(email);
+    const base: Perfil = cuenta.profile || { ...PERFIL_VACIO, email };
+    setPerfil({ ...base, email });
+    setSubscribed(cuenta.subscribed);
+    setScreen(cuenta.subscribed ? "chat" : "onboarding");
+  };
+
+  const cerrarSesion = async () => {
+    try {
+      await logout();
+    } catch {
+      // Ignora errores de cierre de sesión.
+    }
+    setPerfil(PERFIL_VACIO);
+    setIdentityId("");
+    setSubscribed(false);
+    setScreen("landing");
+  };
+
+  const irAuth = (modo: "login" | "signup") => {
+    setAuthMode(modo);
+    setScreen("auth");
   };
 
   return (
     <>
       {screen === "landing" && (
-        <Landing onSubscribe={() => setScreen("onboarding")} />
+        <Landing onSubscribe={() => irAuth("signup")} onLogin={() => irAuth("login")} />
       )}
-      {screen === "onboarding" && <Onboarding subscribed={subscribed} loading={redirecting} onComplete={completarOnboarding} />}
+      {screen === "auth" && (
+        <AuthScreen modoInicial={authMode} onAuthenticated={trasAutenticar} onBack={() => setScreen("landing")} />
+      )}
+      {screen === "onboarding" && <Onboarding inicial={perfil} subscribed={subscribed} loading={redirecting} onComplete={completarOnboarding} />}
       {screen === "chat" && (
-        <ChatView perfil={perfil} onExercises={() => setScreen("ejercicios")} />
+        <ChatView perfil={perfil} onExercises={() => setScreen("ejercicios")} onLogout={cerrarSesion} />
       )}
       {screen === "ejercicios" && <Ejercicios onBack={() => setScreen("chat")} />}
       {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
