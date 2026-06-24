@@ -34,8 +34,8 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "mxn",
             product_data: {
-              name: "Vitalis Pro — Consulta médica mensual",
-              description: "Dr. Vitalis: protocolo personalizado, medicamentos, ejercicios y calendario.",
+              name: "Vitalis Pro — Resultados y consulta abierta",
+              description: "Resultados del test, tratamiento personalizado y consulta con Dr. Vitalis.",
             },
             unit_amount: 59900,
             recurring: { interval: "month" },

@@ -26,6 +26,7 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type TestAnswer = Record<string, number>;
 
 const PRECIO = "$599 MXN";
 
@@ -33,6 +34,9 @@ const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
 async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   try {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("vitalis_perfil", JSON.stringify(perfil));
+    }
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -155,7 +159,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             }}
           >
             <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.teal }} />
-            Salud sexual masculina con IA clínica
+            Test confidencial de disfunción eréctil
           </div>
           <h1
             style={{
@@ -168,13 +172,12 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
               letterSpacing: "-0.01em",
             }}
           >
-            Recupera el control de tu salud sexual,{" "}
-            <span style={{ fontStyle: "italic", color: T.goldDark }}>con un especialista a tu lado</span>
+            Evalúa tu salud sexual en dos minutos,{" "}
+            <span style={{ fontStyle: "italic", color: T.goldDark }}>sin empezar una consulta completa</span>
           </h1>
           <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 30px", maxWidth: "540px" }}>
-            El Dr. Vitalis es un urólogo guiado por inteligencia artificial que entiende tu caso, te orienta de forma
-            privada y te acompaña con un protocolo a tu medida: medicamentos con dosis, ejercicios terapéuticos y
-            seguimiento real de tu progreso.
+            Responde un test breve y privado sobre función eréctil. Al inscribirte, desbloqueas tus resultados,
+            opciones de tratamiento personalizadas y una consulta abierta con el Dr. Vitalis.
           </p>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
@@ -191,7 +194,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
+              Hacer el test
             </button>
             <button
               onClick={onSubscribe}
@@ -207,7 +210,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Conocer el programa
+              Ver inscripción
             </button>
           </div>
           <div
@@ -264,7 +267,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                   lineHeight: 1.5,
                 }}
               >
-                Doctor, tengo dudas sobre un tratamiento y prefiero no ir a consulta presencial todavía.
+                Quiero saber si lo que me pasa puede ser disfunción eréctil.
               </div>
               <div
                 style={{
@@ -279,8 +282,8 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                   border: `1px solid ${T.border}`,
                 }}
               >
-                Entiendo perfectamente, y es completamente confidencial. Cuénteme desde cuándo lo nota y revisemos juntos
-                las opciones, paso a paso.
+                Empecemos con un test breve. Con tus respuestas puedo preparar resultados, tratamiento y consulta para
+                cuando actives tu acceso.
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: "5px", paddingLeft: "4px", paddingTop: "2px" }}>
                 <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
@@ -308,7 +311,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           {[
             ["Privacidad ante todo", "Tus conversaciones son confidenciales y tu información se mantiene protegida."],
             ["Criterio clínico", "Orientación con tono médico profesional, fundamentada y sin juicios."],
-            ["Atención inmediata", "Respuestas claras a cualquier hora, sin salas de espera ni agendas."],
+            ["Test en dos minutos", "Respondes preguntas concretas antes de abrir una consulta completa."],
           ].map(([t, d]) => (
             <div key={t} style={{ background: T.cream, padding: "20px 22px" }}>
               <div style={{ fontSize: "14px", fontWeight: 800, color: T.charcoal, marginBottom: "6px" }}>{t}</div>
@@ -325,14 +328,14 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             Lo que recibes
           </div>
           <h2 style={{ fontFamily: display, fontSize: "30px", fontWeight: 600, color: T.charcoal, margin: 0, lineHeight: 1.15 }}>
-            Un acompañamiento completo, no solo respuestas
+            Primero el test, después el plan completo
           </h2>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "18px" }}>
           {[
-            ["01", "Consulta privada 24/7", "Conversa con el Dr. Vitalis cuando lo necesites. Respuestas claras, en español y con tono médico profesional."],
-            ["02", "Protocolo personalizado", "Según tu edad, país y condición, recibes un plan con medicamentos, dosis exactas y ejercicios terapéuticos."],
-            ["03", "Seguimiento de adherencia", "Lleva el control de ejercicios completados y dosis tomadas para mejorar tus resultados con el tiempo."],
+            ["01", "Test de función eréctil", "Respondes una evaluación breve y confidencial enfocada en síntomas, frecuencia, confianza y salud general."],
+            ["02", "Resultados al inscribirte", "La inscripción desbloquea tu lectura del test y las siguientes acciones recomendadas para tu caso."],
+            ["03", "Consulta abierta", "Después de activar Vitalis Pro, continúas con tratamiento personalizado y acompañamiento del Dr. Vitalis."],
           ].map(([n, t, d]) => (
             <div
               key={n}
@@ -361,9 +364,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         </h2>
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {[
-            ["1", "Cuéntanos tu caso", "Completas un perfil breve y confidencial con tu información básica."],
-            ["2", "Habla con el Dr. Vitalis", "Recibes orientación inmediata sobre tu salud sexual, sin esperas ni citas."],
-            ["3", "Sigue tu protocolo", "Activas Vitalis para acceder a tu plan completo y al acompañamiento continuo."],
+            ["1", "Completa tu perfil", "Dejas tus datos básicos para guardar la evaluación de forma confidencial."],
+            ["2", "Responde el test", "Contestamos solo lo necesario para estimar tu situación de disfunción eréctil."],
+            ["3", "Desbloquea resultados", "Activas Vitalis para ver resultados, tratamiento y consulta ya abierta."],
           ].map(([n, t, d]) => (
             <div
               key={n}
@@ -456,10 +459,10 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             <span style={{ fontFamily: "var(--font-body)", fontSize: "16px", fontWeight: 600, color: T.muted }}> / mes</span>
           </div>
           <p style={{ fontSize: "14px", color: T.muted, margin: "14px 0 24px", lineHeight: 1.55 }}>
-            Acceso completo al Dr. Vitalis, protocolo personalizado y seguimiento. Cancela cuando quieras.
+            Desbloquea resultados del test, tratamiento personalizado y consulta abierta. Cancela cuando quieras.
           </p>
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 26px", textAlign: "left", display: "flex", flexDirection: "column", gap: "12px" }}>
-            {["Consultas ilimitadas 24/7", "Medicamentos con dosis exactas", "Ejercicios terapéuticos guiados", "Seguimiento de tu progreso"].map((f) => (
+            {["Resultados completos del test", "Tratamiento personalizado", "Consulta abierta con Dr. Vitalis", "Seguimiento de tu progreso"].map((f) => (
               <li key={f} style={{ display: "flex", gap: "11px", alignItems: "center", fontSize: "14px", color: T.ink }}>
                 <span
                   style={{
@@ -589,8 +592,8 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
       Suscripción activada
     </h2>
     <p style={{ fontSize: "16px", color: T.muted, maxWidth: "460px", margin: "0 0 30px", lineHeight: 1.6 }}>
-      Gracias por confiar en Vitalis. Tu acceso a Vitalis Pro está activo. Ya puedes iniciar tu consulta con el Dr.
-      Vitalis.
+      Gracias por confiar en Vitalis. Tu acceso a Vitalis Pro está activo. Ya puedes ver tus resultados y continuar la
+      consulta abierta con el Dr. Vitalis.
     </p>
     <button
       onClick={onContinue}
@@ -672,7 +675,7 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
         <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 26px", lineHeight: 1.55 }}>
           {intent === "subscribe"
             ? "Confirma tus datos para activar Vitalis Pro. El cobro se realiza de forma segura con Stripe."
-            : "Confidencial. Nos ayuda a personalizar la orientación del Dr. Vitalis."}
+            : "Confidencial. Lo usamos para preparar tu test de disfunción eréctil."}
         </p>
 
         <div style={{ marginBottom: "14px" }}>
@@ -719,7 +722,7 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
         />
         <input
           className="field"
-          placeholder="Condición o motivo de consulta"
+          placeholder="Motivo principal o síntoma"
           value={form.condicion}
           onChange={(e) => setForm({ ...form, condicion: e.target.value })}
           style={{ ...inputBase, marginBottom: "20px" }}
@@ -745,11 +748,155 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
             ? "Redirigiendo a pago seguro..."
             : intent === "subscribe"
               ? `Continuar al pago — ${PRECIO}/mes`
-              : "Continuar a la consulta"}
+              : "Continuar al test"}
         </button>
         <p style={{ fontSize: "12px", color: T.muted, textAlign: "center", margin: "16px 0 0", lineHeight: 1.5 }}>
           Tu información es confidencial y se usa solo para personalizar tu acompañamiento.
         </p>
+      </div>
+    </div>
+  );
+};
+
+const TEST_PREGUNTAS = [
+  {
+    id: "confianza",
+    pregunta: "¿Qué tanta confianza tienes para lograr y mantener una erección?",
+    opciones: ["Muy baja", "Baja", "Moderada", "Alta"],
+  },
+  {
+    id: "frecuencia",
+    pregunta: "En las últimas 4 semanas, ¿con qué frecuencia la erección fue suficiente para la penetración?",
+    opciones: ["Casi nunca", "Pocas veces", "La mitad de las veces", "Casi siempre"],
+  },
+  {
+    id: "mantenimiento",
+    pregunta: "Cuando hubo actividad sexual, ¿qué tan difícil fue mantener la erección?",
+    opciones: ["Muy difícil", "Difícil", "Algo difícil", "No fue difícil"],
+  },
+  {
+    id: "satisfaccion",
+    pregunta: "¿Qué tan satisfecho estás con tu desempeño sexual reciente?",
+    opciones: ["Nada satisfecho", "Poco satisfecho", "Neutral", "Satisfecho"],
+  },
+  {
+    id: "salud",
+    pregunta: "¿Tienes presión alta, diabetes, problemas cardiacos o tomas medicamentos frecuentes?",
+    opciones: ["Sí, uno o más", "No estoy seguro", "No"],
+  },
+];
+
+const TestView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+  const [answers, setAnswers] = useState<TestAnswer>({});
+  const completo = TEST_PREGUNTAS.every((q) => answers[q.id] !== undefined);
+  const score = Object.values(answers).reduce((acc, v) => acc + v, 0);
+  const nivel = score <= 5 ? "prioridad alta" : score <= 11 ? "prioridad media" : "prioridad preventiva";
+
+  return (
+    <div style={{ minHeight: "100vh", background: T.cream, color: T.ink, padding: "24px" }}>
+      <div style={{ maxWidth: "880px", margin: "0 auto" }}>
+        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "30px" }}>
+          <Header />
+          <span style={{ fontSize: "12px", fontWeight: 800, color: T.teal, letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Test ED
+          </span>
+        </header>
+
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 0.85fr) minmax(0, 1.15fr)", gap: "26px" }} className="hero-grid">
+          <aside
+            style={{
+              background: T.white,
+              border: `1px solid ${T.border}`,
+              borderRadius: "16px",
+              padding: "24px",
+              alignSelf: "start",
+            }}
+          >
+            <div style={{ fontSize: "12px", fontWeight: 800, color: T.goldDark, marginBottom: "12px" }}>Paso 2 de 2</div>
+            <h1 style={{ fontFamily: display, fontSize: "30px", lineHeight: 1.12, color: T.charcoal, margin: "0 0 12px" }}>
+              Test breve de disfunción eréctil
+            </h1>
+            <p style={{ fontSize: "14px", lineHeight: 1.58, color: T.muted, margin: "0 0 18px" }}>
+              {perfil.nombre || "Paciente"}, responde estas preguntas para preparar tus resultados. No es una receta ni
+              diagnóstico definitivo; sirve para orientar el siguiente paso.
+            </p>
+            <div style={{ height: "8px", borderRadius: "999px", background: T.creamDeep, overflow: "hidden", marginBottom: "12px" }}>
+              <div
+                style={{
+                  width: `${(Object.keys(answers).length / TEST_PREGUNTAS.length) * 100}%`,
+                  height: "100%",
+                  background: T.teal,
+                  transition: "width 180ms ease",
+                }}
+              />
+            </div>
+            <div style={{ fontSize: "12.5px", color: T.muted }}>{Object.keys(answers).length} de {TEST_PREGUNTAS.length} respuestas</div>
+          </aside>
+
+          <main style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {TEST_PREGUNTAS.map((q) => (
+              <section key={q.id} style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: "14px", padding: "18px" }}>
+                <h2 style={{ fontSize: "15.5px", lineHeight: 1.45, color: T.charcoal, margin: "0 0 14px" }}>{q.pregunta}</h2>
+                <div style={{ display: "grid", gap: "9px" }}>
+                  {q.opciones.map((opcion, index) => {
+                    const selected = answers[q.id] === index;
+                    return (
+                      <button
+                        key={opcion}
+                        onClick={() => setAnswers((p) => ({ ...p, [q.id]: index }))}
+                        className="chip"
+                        style={{
+                          textAlign: "left",
+                          padding: "12px 14px",
+                          borderRadius: "10px",
+                          border: `1px solid ${selected ? T.teal : T.border}`,
+                          background: selected ? "rgba(45,125,111,0.10)" : T.cream,
+                          color: T.ink,
+                          fontSize: "14px",
+                          fontWeight: selected ? 700 : 600,
+                          cursor: "pointer",
+                        }}
+                      >
+                        {opcion}
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+
+            <section style={{ background: T.charcoal, color: T.white, borderRadius: "16px", padding: "22px" }}>
+              <div style={{ fontSize: "12px", color: T.gold, fontWeight: 800, marginBottom: "8px" }}>
+                {completo ? `Evaluación lista · ${nivel}` : "Completa el test para continuar"}
+              </div>
+              <h2 style={{ fontFamily: display, fontSize: "25px", lineHeight: 1.16, margin: "0 0 10px" }}>
+                Desbloquea tus resultados, tratamiento y consulta abierta
+              </h2>
+              <p style={{ fontSize: "14px", lineHeight: 1.58, color: "rgba(255,255,255,0.72)", margin: "0 0 18px" }}>
+                La inscripción activa la lectura completa del test, recomendaciones personalizadas y acceso al Dr.
+                Vitalis para continuar tu caso.
+              </p>
+              <button
+                onClick={onSubscribe}
+                disabled={!completo || subscribing}
+                className="btn btn-primary"
+                style={{
+                  width: "100%",
+                  padding: "15px",
+                  background: !completo || subscribing ? "#5E5A52" : T.gold,
+                  color: T.white,
+                  border: "none",
+                  borderRadius: "999px",
+                  cursor: !completo || subscribing ? "not-allowed" : "pointer",
+                  fontSize: "15px",
+                  fontWeight: 800,
+                }}
+              >
+                {subscribing ? "Abriendo pago seguro..." : `Inscribirme y ver resultados — ${PRECIO}/mes`}
+              </button>
+            </section>
+          </main>
+        </div>
       </div>
     </div>
   );
@@ -960,15 +1107,25 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 };
 
 export default function App() {
-  const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
+  const [screen, setScreen] = useState<"landing" | "onboarding" | "test" | "chat" | "success">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
-      setScreen("success");
-      window.history.replaceState({}, "", "/");
+    if (typeof window !== "undefined") {
+      const saved = window.localStorage.getItem("vitalis_perfil");
+      if (saved) {
+        try {
+          setPerfil(JSON.parse(saved));
+        } catch {
+          window.localStorage.removeItem("vitalis_perfil");
+        }
+      }
+      if (new URLSearchParams(window.location.search).get("success") === "true") {
+        setScreen("success");
+        window.history.replaceState({}, "", "/");
+      }
     }
   }, []);
 
@@ -988,7 +1145,7 @@ export default function App() {
     if (intent === "subscribe") {
       irACheckout(p);
     } else {
-      setScreen("chat");
+      setScreen("test");
     }
   };
 
@@ -1007,6 +1164,16 @@ export default function App() {
         />
       )}
       {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting} onComplete={completarOnboarding} />}
+      {screen === "test" && (
+        <TestView
+          perfil={perfil}
+          subscribing={redirecting}
+          onSubscribe={() => {
+            setIntent("subscribe");
+            irACheckout(perfil);
+          }}
+        />
+      )}
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
