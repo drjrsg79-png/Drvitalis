@@ -51,6 +51,21 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   }
 }
 
+async function consultarAcceso(email: string): Promise<{ active: boolean; perfil: Perfil; error?: string } | null> {
+  try {
+    const res = await fetch("/api/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { active: false, perfil: { nombre: "", email, edad: "", pais: "", condicion: "" }, error: data.error };
+    return data;
+  } catch {
+    return null;
+  }
+}
+
 const Monogram = ({ size = 30 }: { size?: number }) => (
   <div
     style={{
@@ -611,8 +626,94 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
   </div>
 );
 
-const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void }) => {
-  const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+const Login = ({
+  loading,
+  onLogin,
+}: {
+  loading: boolean;
+  onLogin: (email: string) => void;
+}) => {
+  const [email, setEmail] = useState("");
+  const [touched, setTouched] = useState(false);
+  const correoOk = emailValido(email);
+
+  const submit = () => {
+    setTouched(true);
+    if (correoOk && !loading) onLogin(email);
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "32px 24px",
+        background: T.cream,
+      }}
+    >
+      <div className="rise" style={{ maxWidth: "420px", width: "100%", animationDelay: "0.04s" }}>
+        <div style={{ marginBottom: "24px" }}>
+          <Header />
+        </div>
+        <h2 style={{ fontFamily: display, fontSize: "28px", fontWeight: 600, color: T.charcoal, margin: "0 0 8px" }}>
+          Entrar a Vitalis
+        </h2>
+        <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 24px", lineHeight: 1.55 }}>
+          Escribe el correo con el que pagaste. Si aún no tienes acceso activo, te llevaremos al test y al pago.
+        </p>
+        <input
+          className="field"
+          placeholder="Correo electrónico"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          style={{
+            width: "100%",
+            padding: "13px 14px",
+            border: `1px solid ${touched && !correoOk ? "#C0492F" : T.border}`,
+            borderRadius: "10px",
+            fontSize: "14px",
+            boxSizing: "border-box",
+            background: T.white,
+            color: T.ink,
+            marginBottom: "10px",
+          }}
+        />
+        {touched && !correoOk && (
+          <div style={{ fontSize: "12px", color: "#C0492F", marginBottom: "14px" }}>Escribe un correo electrónico válido.</div>
+        )}
+        <button
+          onClick={submit}
+          disabled={loading}
+          className="btn btn-primary"
+          style={{
+            width: "100%",
+            padding: "15px",
+            background: loading ? T.border : T.gold,
+            color: T.white,
+            border: "none",
+            borderRadius: "999px",
+            cursor: loading ? "wait" : "pointer",
+            fontSize: "15px",
+            fontWeight: 700,
+            marginTop: touched && !correoOk ? 0 : "4px",
+          }}
+        >
+          {loading ? "Revisando acceso..." : "Entrar"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const Onboarding = ({ intent, loading, initialPerfil, onComplete }: { intent: Intent; loading: boolean; initialPerfil: Perfil; onComplete: (p: Perfil) => void }) => {
+  const [form, setForm] = useState<Perfil>(initialPerfil);
   const [touched, setTouched] = useState(false);
   const nombreOk = form.nombre.trim() !== "";
   const correoOk = emailValido(form.email);
@@ -761,7 +862,7 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+const ChatView = ({ perfil, hasAccess, onSubscribe, subscribing }: { perfil: Perfil; hasAccess: boolean; onSubscribe: () => void; subscribing: boolean }) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
   ]);
@@ -821,38 +922,40 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         </div>
       </div>
 
-      <div
-        style={{
-          background: "rgba(184,146,42,0.08)",
-          borderBottom: `1px solid ${T.border}`,
-          padding: "11px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
-        <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
+      {!hasAccess && (
+        <div
           style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
-            borderRadius: "999px",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
+            background: "rgba(184,146,42,0.08)",
+            borderBottom: `1px solid ${T.border}`,
+            padding: "11px 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
           }}
         >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
-        </button>
-      </div>
+          <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
+          <button
+            onClick={onSubscribe}
+            disabled={subscribing}
+            className="btn btn-primary"
+            style={{
+              padding: "9px 18px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: subscribing ? "wait" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
+          </button>
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ maxWidth: "760px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -960,10 +1063,12 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 };
 
 export default function App() {
-  const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
+  const [screen, setScreen] = useState<"landing" | "login" | "onboarding" | "chat" | "success">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
@@ -985,6 +1090,7 @@ export default function App() {
 
   const completarOnboarding = (p: Perfil) => {
     setPerfil(p);
+    setHasAccess(false);
     if (intent === "subscribe") {
       irACheckout(p);
     } else {
@@ -992,13 +1098,34 @@ export default function App() {
     }
   };
 
+  const entrarConEmail = async (email: string) => {
+    setCheckingAccess(true);
+    const acceso = await consultarAcceso(email);
+    setCheckingAccess(false);
+
+    if (!acceso) {
+      alert("No se pudo revisar tu acceso. Intenta de nuevo.");
+      return;
+    }
+
+    setPerfil(acceso.perfil);
+    if (acceso.active) {
+      setHasAccess(true);
+      setScreen("chat");
+      return;
+    }
+
+    setHasAccess(false);
+    setIntent("subscribe");
+    setScreen("onboarding");
+  };
+
   return (
     <>
       {screen === "landing" && (
         <Landing
           onStart={() => {
-            setIntent("chat");
-            setScreen("onboarding");
+            setScreen("login");
           }}
           onSubscribe={() => {
             setIntent("subscribe");
@@ -1006,10 +1133,12 @@ export default function App() {
           }}
         />
       )}
-      {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting} onComplete={completarOnboarding} />}
+      {screen === "login" && <Login loading={checkingAccess} onLogin={entrarConEmail} />}
+      {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting} initialPerfil={perfil} onComplete={completarOnboarding} />}
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
+          hasAccess={hasAccess}
           subscribing={redirecting}
           onSubscribe={() => {
             setIntent("subscribe");
@@ -1017,7 +1146,7 @@ export default function App() {
           }}
         />
       )}
-      {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
+      {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.email ? "chat" : "login")} />}
     </>
   );
 }
