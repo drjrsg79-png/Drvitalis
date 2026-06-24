@@ -26,6 +26,18 @@ type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const PRECIO = "$599 MXN";
 
+async function guardarPerfil(perfil: Perfil): Promise<void> {
+  try {
+    await fetch("/api/perfil", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(perfil),
+    });
+  } catch {
+    // El guardado del perfil no debe interrumpir la consulta ni el pago.
+  }
+}
+
 async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   try {
     const res = await fetch("/api/stripe/checkout", {
@@ -264,6 +276,7 @@ export default function App() {
 
   const completarOnboarding = (p: Perfil) => {
     setPerfil(p);
+    void guardarPerfil(p);
     if (intent === "subscribe") {
       irACheckout(p);
     } else {
