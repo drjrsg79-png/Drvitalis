@@ -54,6 +54,11 @@ async function emailDeSuscripcion(subId: string): Promise<string | null> {
   return fila?.email ?? null;
 }
 
+// Convierte el periodo de fin de Stripe (segundos Unix) a Date.
+function aFecha(segundos: number | null | undefined): Date | null {
+  return typeof segundos === "number" ? new Date(segundos * 1000) : null;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") || "";
@@ -77,15 +82,51 @@ export async function POST(req: NextRequest) {
         const session = event.data.object as Stripe.Checkout.Session;
         const email =
           session.customer_details?.email || session.customer_email || "";
+        const subId =
+          typeof session.subscription === "string" ? session.subscription : null;
+
+        // Recupera la suscripción para conocer hasta cuándo tiene acceso.
+        let periodoFin: Date | null = null;
+        if (subId) {
+          try {
+            const sub = await stripe.subscriptions.retrieve(subId);
+            periodoFin = aFecha(
+              (sub as unknown as { current_period_end?: number })
+                .current_period_end,
+            );
+          } catch {
+            // Si falla la recuperación, se activa igualmente sin fecha de fin.
+          }
+        }
+
         if (email) {
           await guardarSuscripcion(email, {
             status: "active",
             stripeCustomerId:
               typeof session.customer === "string" ? session.customer : null,
-            stripeSubscriptionId:
-              typeof session.subscription === "string"
-                ? session.subscription
-                : null,
+            stripeSubscriptionId: subId,
+            currentPeriodEnd: periodoFin,
+          });
+        }
+        break;
+      }
+      case "customer.subscription.updated": {
+        // Cambios de estado de la suscripción (reactivación, pausa, programación
+        // de cancelación, cambio de plan): se reflejan para mantener el acceso
+        // siempre sincronizado con Stripe.
+        const sub = event.data.object as Stripe.Subscription;
+        const email = await emailDeSuscripcion(sub.id);
+        if (email) {
+          await guardarSuscripcion(email, {
+            status: sub.status,
+            stripeCustomerId:
+              typeof sub.customer === "string" ? sub.customer : null,
+            stripeSubscriptionId: sub.id,
+            currentPeriodEnd: aFecha(
+              (sub as unknown as { current_period_end?: number })
+                .current_period_end,
+            ),
+            cancelAtPeriodEnd: sub.cancel_at_period_end,
           });
         }
         break;
