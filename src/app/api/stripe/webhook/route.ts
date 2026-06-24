@@ -15,25 +15,22 @@ export async function POST(req: NextRequest) {
       sig,
       process.env.STRIPE_WEBHOOK_SECRET || ""
     );
-  } catch (err: any) {
-    console.error("Webhook signature inválida:", err?.message);
+  } catch {
     return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
   }
 
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object as Stripe.Checkout.Session;
-      console.log("Pago exitoso:", session.customer_email);
+      // Pago confirmado. Aquí se persistirá la suscripción en la base de datos
+      // cuando se conecte el almacenamiento (ver pendientes en CLAUDE.md).
       break;
     }
     case "customer.subscription.deleted": {
-      const sub = event.data.object as Stripe.Subscription;
-      console.log("Suscripción cancelada:", sub.id);
+      // Suscripción cancelada.
       break;
     }
     case "invoice.payment_failed": {
-      const invoice = event.data.object as Stripe.Invoice;
-      console.log("Pago fallido:", invoice.customer_email);
+      // Cobro recurrente fallido.
       break;
     }
     default:

@@ -6,7 +6,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 export async function POST(req: NextRequest) {
   try {
     const { email, nombre } = await req.json();
-    const baseUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:3000";
+    const rawUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:8889";
+    // Stripe exige URLs absolutas con esquema. NEXT_PUBLIC_URL puede venir como
+    // "drvitalis1.com" sin protocolo, así que se normaliza.
+    const baseUrl = /^https?:\/\//.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -32,8 +35,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (err: any) {
-    console.error("Error en /api/stripe/checkout:", err?.message);
+  } catch {
     return NextResponse.json(
       { error: "No se pudo crear la sesión de pago." },
       { status: 500 }
