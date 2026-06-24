@@ -6,7 +6,7 @@ App de salud sexual masculina con IA. Urólogo experto disponible 24/7.
 - Tailwind CSS v3
 - Supabase (auth + base de datos)
 - Stripe (suscripciones recurrentes)
-- API de Anthropic — modelo claude-sonnet-4-20250514
+- API de Anthropic vía Netlify AI Gateway — modelo claude-sonnet-4-5
 
 ## Estructura de carpetas
 - src/app/ — rutas y páginas (App Router)
