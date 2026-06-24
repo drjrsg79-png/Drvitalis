@@ -28,6 +28,9 @@ type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const PRECIO = "$599 MXN";
+const FREE_QUESTION_LIMIT = 5;
+const LIMIT_MESSAGE =
+  "Has completado tu test gratuito con el Dr. Vitalis. Activa Vitalis Pro para continuar con consultas ilimitadas, protocolo personalizado y seguimiento.";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -772,8 +775,19 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, loading]);
 
+  const preguntasUsadas = msgs.filter((m) => m.role === "user").length;
+  const limiteAlcanzado = preguntasUsadas >= FREE_QUESTION_LIMIT;
+
   const send = async (text: string) => {
     if (!text.trim() || loading) return;
+    if (limiteAlcanzado) {
+      setMsgs((p) => {
+        const ultimo = p[p.length - 1];
+        if (ultimo?.role === "assistant" && ultimo.content === LIMIT_MESSAGE) return p;
+        return [...p, { role: "assistant", content: LIMIT_MESSAGE }];
+      });
+      return;
+    }
     const newMsgs: ChatMessage[] = [...msgs, { role: "user", content: text }];
     setMsgs(newMsgs);
     setInput("");
@@ -788,7 +802,13 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         }),
       });
       const data = await res.json();
-      setMsgs((p) => [...p, { role: "assistant", content: data.reply || "Disculpe, no pude responder en este momento." }]);
+      setMsgs((p) => [
+        ...p,
+        {
+          role: "assistant",
+          content: data.reply || (data.limited ? LIMIT_MESSAGE : "Disculpe, no pude responder en este momento."),
+        },
+      ]);
     } catch {
       setMsgs((p) => [...p, { role: "assistant", content: "Error de conexión. Intente nuevamente en unos segundos." }]);
     }
@@ -833,7 +853,11 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
           flexWrap: "wrap",
         }}
       >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
+        <span style={{ fontSize: "12.5px", color: T.ink }}>
+          {limiteAlcanzado
+            ? "Test gratuito completado. Activa Vitalis Pro para seguir consultando al Dr. Vitalis."
+            : `Test gratuito: ${preguntasUsadas}/${FREE_QUESTION_LIMIT} consultas usadas. Activa Vitalis Pro para consultas ilimitadas.`}
+        </span>
         <button
           onClick={onSubscribe}
           disabled={subscribing}
@@ -920,6 +944,49 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
               </div>
             </div>
           )}
+          {limiteAlcanzado && !loading && (
+            <div
+              className="fade"
+              style={{
+                background: T.white,
+                border: `1px solid ${T.gold}`,
+                borderRadius: "14px",
+                padding: "16px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "14px",
+                flexWrap: "wrap",
+              }}
+            >
+              <div style={{ maxWidth: "520px" }}>
+                <div style={{ fontSize: "14px", fontWeight: 800, color: T.charcoal, marginBottom: "4px" }}>
+                  Test gratuito completado
+                </div>
+                <div style={{ fontSize: "13px", color: T.muted, lineHeight: 1.45 }}>
+                  Para continuar la consulta, recibir tu protocolo y dar seguimiento a tu progreso, activa Vitalis Pro.
+                </div>
+              </div>
+              <button
+                onClick={onSubscribe}
+                disabled={subscribing}
+                className="btn btn-primary"
+                style={{
+                  padding: "11px 18px",
+                  background: T.gold,
+                  color: T.white,
+                  border: "none",
+                  borderRadius: "999px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: subscribing ? "wait" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {subscribing ? "Procesando..." : `Activar Pro — ${PRECIO}/mes`}
+              </button>
+            </div>
+          )}
           <div ref={endRef} />
         </div>
       </div>
@@ -930,7 +997,8 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
             className="field"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Escriba su consulta..."
+            placeholder={limiteAlcanzado ? "Activa Vitalis Pro para continuar..." : "Escriba su consulta..."}
+            disabled={limiteAlcanzado}
             onKeyDown={(e) => {
               if (e.key === "Enter") send(input);
             }}
@@ -938,15 +1006,15 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
           />
           <button
             onClick={() => send(input)}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || limiteAlcanzado}
             className="btn btn-primary"
             style={{
               padding: "12px 24px",
-              background: !input.trim() || loading ? T.border : T.gold,
+              background: !input.trim() || loading || limiteAlcanzado ? T.border : T.gold,
               color: T.white,
               border: "none",
               borderRadius: "999px",
-              cursor: !input.trim() || loading ? "not-allowed" : "pointer",
+              cursor: !input.trim() || loading || limiteAlcanzado ? "not-allowed" : "pointer",
               fontWeight: 700,
               fontSize: "14px",
             }}
