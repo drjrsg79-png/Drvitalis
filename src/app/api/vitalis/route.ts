@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
+const FREE_QUESTION_LIMIT = 5;
+const LIMIT_REPLY =
+  'Has completado tu test gratuito con el Dr. Vitalis. Para continuar con consultas ilimitadas, protocolo personalizado y seguimiento, activa Vitalis Pro.';
+
 export async function POST(request: NextRequest) {
   try {
     const { systemPrompt, messages } = (await request.json()) as {
@@ -34,6 +38,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { reply: 'No se recibió ninguna consulta.' },
         { status: 400 }
+      );
+    }
+
+    const userQuestions = sanitized.filter((m) => m.role === 'user').length;
+    if (userQuestions > FREE_QUESTION_LIMIT) {
+      return NextResponse.json(
+        { reply: LIMIT_REPLY, limited: true, limit: FREE_QUESTION_LIMIT },
+        { status: 429 }
       );
     }
 
