@@ -1,11 +1,10 @@
 import Stripe from "stripe";
-import { NextRequest, NextResponse } from "next/server";
 import {
   actualizarEstadoPorSubscriptionId,
-  normalizeEmail,
   marcarPorCustomerId,
+  normalizeEmail,
   upsertStripeSubscription,
-} from "@/lib/db";
+} from "../../src/lib/db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
@@ -35,28 +34,26 @@ async function persistSubscription(sub: Stripe.Subscription, fallbackEmail = "")
   });
 }
 
-export async function POST(req: NextRequest) {
+export default async (req: Request) => {
+  if (req.method !== "POST") {
+    return Response.json({ error: "Método no permitido" }, { status: 405 });
+  }
+
   const body = await req.text();
   const sig = req.headers.get("stripe-signature") || "";
-
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET || ""
-    );
+    event = stripe.webhooks.constructEvent(body, sig, process.env.STRIPE_WEBHOOK_SECRET || "");
   } catch {
-    return NextResponse.json({ error: "Firma inválida" }, { status: 400 });
+    return Response.json({ error: "Firma inválida" }, { status: 400 });
   }
 
   try {
     switch (event.type) {
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
-        const subscriptionId =
-          typeof session.subscription === "string" ? session.subscription : null;
+        const subscriptionId = typeof session.subscription === "string" ? session.subscription : null;
         if (subscriptionId) {
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
           await persistSubscription(sub, session.customer_details?.email || session.customer_email || session.metadata?.email || "");
@@ -77,8 +74,7 @@ export async function POST(req: NextRequest) {
       }
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subscriptionId =
-          typeof invoice.subscription === "string" ? invoice.subscription : null;
+        const subscriptionId = typeof invoice.subscription === "string" ? invoice.subscription : null;
         if (subscriptionId) {
           const sub = await stripe.subscriptions.retrieve(subscriptionId);
           await persistSubscription(sub, invoice.customer_email || "");
@@ -87,8 +83,7 @@ export async function POST(req: NextRequest) {
       }
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const customerId =
-          typeof invoice.customer === "string" ? invoice.customer : null;
+        const customerId = typeof invoice.customer === "string" ? invoice.customer : null;
         if (customerId) {
           await marcarPorCustomerId(customerId, "past_due");
         }
@@ -98,12 +93,8 @@ export async function POST(req: NextRequest) {
         break;
     }
   } catch {
-    // Si la persistencia falla, se responde con error para que Stripe reintente.
-    return NextResponse.json(
-      { error: "No se pudo procesar el evento." },
-      { status: 500 }
-    );
+    return Response.json({ error: "No se pudo procesar el evento." }, { status: 500 });
   }
 
-  return NextResponse.json({ received: true });
-}
+  return Response.json({ received: true });
+};

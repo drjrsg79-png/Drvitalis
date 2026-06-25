@@ -26,10 +26,26 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type SubscriptionStatus = {
+  isPro: boolean;
+  status: string;
+  plan: string;
+  renewalDate: string | null;
+};
 
 const PRECIO = "$599 MXN";
+const FREE_QUESTION_LIMIT = 3;
+const MEDICAL_CREDENTIALS = [
+  "Dr. José Rogelio Sánchez García",
+  "Medicina Interna y Terapia Intensiva",
+  "Céd. Prof. 4273375 / 6525546",
+  "Centro de Salud Sexual Masculina",
+];
+const ASSISTANT_INTRO =
+  "Soy el asistente digital de Vitalis, diseñado para orientación inicial en salud sexual masculina bajo el enfoque médico del Dr. José Rogelio Sánchez García. La información no sustituye una consulta médica formal, pero puede ayudarte a identificar posibles causas, riesgos y próximos pasos.";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const normalizarEmail = (v: string) => v.trim().toLowerCase();
 
 async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   try {
@@ -48,6 +64,20 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
     return data.url || null;
   } catch {
     return null;
+  }
+}
+
+async function consultarSuscripcion(email: string): Promise<SubscriptionStatus> {
+  try {
+    const res = await fetch("/api/subscription/status", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalizarEmail(email) }),
+    });
+    if (!res.ok) throw new Error("status");
+    return await res.json();
+  } catch {
+    return { isPro: false, status: "error", plan: "free", renewalDate: null };
   }
 }
 
@@ -81,7 +111,109 @@ const Header = () => (
   </div>
 );
 
-const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: () => void }) => (
+const BenefitIcon = ({ children }: { children: string }) => (
+  <span
+    aria-hidden
+    style={{
+      flexShrink: 0,
+      width: "32px",
+      height: "32px",
+      borderRadius: "999px",
+      background: "rgba(45,125,111,0.12)",
+      color: T.teal,
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "15px",
+      fontWeight: 900,
+    }}
+  >
+    {children}
+  </span>
+);
+
+const PhoneMockup = () => (
+  <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "4px 24px 28px" }}>
+    <div
+      className="rise phone-grid"
+      style={{
+        animationDelay: "0.2s",
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 0.78fr) minmax(280px, 0.42fr)",
+        gap: "30px",
+        alignItems: "center",
+      }}
+    >
+      <div>
+        <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.gold, marginBottom: "12px" }}>
+          Evaluación inicial guiada
+        </div>
+        <h2 style={{ fontFamily: display, fontSize: "30px", fontWeight: 600, color: T.charcoal, margin: "0 0 12px", lineHeight: 1.15 }}>
+          Una conversación privada que ordena tus síntomas y próximos pasos.
+        </h2>
+        <p style={{ fontSize: "15px", lineHeight: 1.6, color: T.muted, margin: 0, maxWidth: "610px" }}>
+          Vitalis recopila tu contexto, responde dudas frecuentes de salud sexual masculina y te ayuda a decidir si debes iniciar una evaluación completa o buscar atención presencial.
+        </p>
+      </div>
+      <div
+        style={{
+          width: "min(100%, 330px)",
+          justifySelf: "center",
+          borderRadius: "34px",
+          padding: "10px",
+          background: T.charcoal,
+          boxShadow: "0 32px 70px -40px rgba(27,27,29,0.65)",
+        }}
+      >
+        <div
+          style={{
+            borderRadius: "26px",
+            background: T.white,
+            border: `1px solid ${T.border}`,
+            overflow: "hidden",
+          }}
+        >
+          <div style={{ height: "24px", display: "flex", alignItems: "center", justifyContent: "center", background: T.charcoal }}>
+            <span style={{ width: "72px", height: "5px", borderRadius: "999px", background: "#3C3C3F" }} />
+          </div>
+          <div style={{ padding: "16px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px" }}>
+              <Monogram size={32} />
+              <div>
+                <div style={{ fontSize: "13px", fontWeight: 800, color: T.charcoal }}>Dr. Vitalis</div>
+                <div style={{ fontSize: "11px", color: T.teal, display: "flex", alignItems: "center", gap: "5px" }}>
+                  <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
+                  Respondiendo ahora
+                </div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "9px" }}>
+              <div style={{ alignSelf: "flex-end", maxWidth: "84%", background: T.charcoal, color: T.white, padding: "10px 12px", borderRadius: "14px 14px 4px 14px", fontSize: "12.5px", lineHeight: 1.45 }}>
+                Me cuesta mantener la erección y no sé si es estrés o algo médico.
+              </div>
+              <div style={{ alignSelf: "flex-start", maxWidth: "90%", background: T.cream, color: T.ink, padding: "10px 12px", borderRadius: "14px 14px 14px 4px", fontSize: "12.5px", lineHeight: 1.5, border: `1px solid ${T.border}` }}>
+                Revisemos duración, frecuencia, medicamentos y antecedentes. Con eso puedo orientarte con más precisión.
+              </div>
+              <div style={{ alignSelf: "flex-start", maxWidth: "92%", background: T.cream, color: T.ink, padding: "10px 12px", borderRadius: "14px 14px 14px 4px", fontSize: "12.5px", lineHeight: 1.5, border: `1px solid ${T.border}` }}>
+                Si aparece dolor, pérdida súbita o síntomas cardiacos, busca atención médica presencial de inmediato.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+);
+
+const Landing = ({
+  subscription,
+  onStart,
+  onSubscribe,
+}: {
+  subscription: SubscriptionStatus;
+  onStart: () => void;
+  onSubscribe: () => void;
+}) => (
   <div style={{ minHeight: "100vh", background: T.cream, color: T.ink }}>
     {/* Atmospheric backdrop */}
     <div
@@ -107,22 +239,44 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         }}
       >
         <Header />
-        <button
-          onClick={onStart}
-          className="btn btn-ghost"
-          style={{
-            padding: "10px 20px",
-            background: "transparent",
-            color: T.charcoal,
-            border: `1px solid ${T.border}`,
-            borderRadius: "999px",
-            fontSize: "13px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          Entrar
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+          {subscription.isPro ? (
+            <span style={{ fontSize: "13px", fontWeight: 800, color: T.teal }}>Vitalis Pro activo</span>
+          ) : (
+            <button
+              onClick={onSubscribe}
+              className="btn btn-strong"
+              style={{
+                padding: "10px 18px",
+                background: T.charcoal,
+                color: T.white,
+                border: `1px solid ${T.charcoal}`,
+                borderRadius: "999px",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Crear cuenta
+            </button>
+          )}
+          <button
+            onClick={onStart}
+            className="btn btn-ghost"
+            style={{
+              padding: "10px 20px",
+              background: "transparent",
+              color: T.charcoal,
+              border: `1px solid ${T.border}`,
+              borderRadius: "999px",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Entrar
+          </button>
+        </div>
       </header>
 
       {/* Hero — asymmetric, editorial */}
@@ -132,8 +286,8 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           margin: "0 auto",
           padding: "56px 24px 30px",
           display: "grid",
-          gridTemplateColumns: "minmax(0, 1.15fr) minmax(0, 0.85fr)",
-          gap: "48px",
+          gridTemplateColumns: "minmax(0, 0.88fr) minmax(260px, 0.42fr)",
+          gap: "42px",
           alignItems: "center",
         }}
         className="hero-grid"
@@ -155,7 +309,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             }}
           >
             <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.teal }} />
-            Salud sexual masculina con IA clínica
+            Para hombres que quieren orientación clara y privada
           </div>
           <h1
             style={{
@@ -168,21 +322,19 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
               letterSpacing: "-0.01em",
             }}
           >
-            Recupera el control de tu salud sexual,{" "}
-            <span style={{ fontStyle: "italic", color: T.goldDark }}>con un especialista a tu lado</span>
+            Recupera tu función sexual con orientación médica especializada
           </h1>
           <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 30px", maxWidth: "540px" }}>
-            El Dr. Vitalis es un urólogo guiado por inteligencia artificial que entiende tu caso, te orienta de forma
-            privada y te acompaña con un protocolo a tu medida: medicamentos con dosis, ejercicios terapéuticos y
-            seguimiento real de tu progreso.
+            Inicia una evaluación confidencial sobre erección, deseo y desempeño. Vitalis te guía con IA clínica,
+            supervisión médica y próximos pasos claros desde el primer mensaje.
           </p>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               onClick={onStart}
-              className="btn btn-primary"
+              className="btn btn-strong"
               style={{
                 padding: "15px 32px",
-                background: T.gold,
+                background: T.charcoal,
                 color: T.white,
                 border: "none",
                 borderRadius: "999px",
@@ -191,113 +343,62 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
+              Iniciar evaluación privada
             </button>
-            <button
-              onClick={onSubscribe}
-              className="btn btn-ghost"
-              style={{
-                padding: "15px 30px",
-                background: "transparent",
-                color: T.charcoal,
-                border: `1px solid ${T.charcoal}`,
-                borderRadius: "999px",
-                fontSize: "15px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Conocer el programa
-            </button>
+            {!subscription.isPro && (
+              <button
+                onClick={onSubscribe}
+                className="btn btn-ghost"
+                style={{
+                  padding: "15px 30px",
+                  background: "transparent",
+                  color: T.charcoal,
+                  border: `1px solid ${T.charcoal}`,
+                  borderRadius: "999px",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Crear cuenta
+              </button>
+            )}
           </div>
-          <div
-            style={{
-              display: "flex",
-              gap: "20px",
-              flexWrap: "wrap",
-              marginTop: "26px",
-              fontSize: "13px",
-              color: T.muted,
-              fontWeight: 600,
-            }}
-          >
-            {["Confidencial", "Sin esperas ni citas", "Disponible 24/7"].map((t) => (
-              <span key={t} style={{ display: "inline-flex", alignItems: "center", gap: "7px" }}>
-                <span style={{ color: T.teal, fontWeight: 800 }}>✓</span>
-                {t}
-              </span>
-            ))}
-          </div>
+          <p style={{ fontSize: "12.5px", color: T.muted, margin: "18px 0 0", lineHeight: 1.5 }}>
+            Orientación médica digital para hombres adultos. No sustituye urgencias ni consulta presencial cuando sea necesaria.
+          </p>
         </div>
 
-        {/* Hero conversation preview */}
         <div className="rise" style={{ animationDelay: "0.18s" }}>
           <div
             style={{
-              background: T.white,
+              background: T.creamDeep,
               border: `1px solid ${T.border}`,
-              borderRadius: "20px",
-              padding: "20px",
-              boxShadow: "0 30px 60px -36px rgba(27,27,29,0.45)",
+              borderRadius: "18px",
+              padding: "22px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
-              <Monogram size={34} />
-              <div>
-                <div style={{ fontSize: "14px", fontWeight: 700, color: T.charcoal }}>Dr. Vitalis</div>
-                <div style={{ fontSize: "11px", color: T.teal, display: "flex", alignItems: "center", gap: "5px" }}>
-                  <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
-                  En línea
-                </div>
-              </div>
+            <div style={{ fontFamily: display, fontSize: "42px", lineHeight: 1, color: T.goldDark, marginBottom: "10px" }}>
+              5 min
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div
-                style={{
-                  alignSelf: "flex-end",
-                  maxWidth: "80%",
-                  background: T.charcoal,
-                  color: T.white,
-                  padding: "10px 14px",
-                  borderRadius: "14px 14px 4px 14px",
-                  fontSize: "13.5px",
-                  lineHeight: 1.5,
-                }}
-              >
-                Doctor, tengo dudas sobre un tratamiento y prefiero no ir a consulta presencial todavía.
-              </div>
-              <div
-                style={{
-                  alignSelf: "flex-start",
-                  maxWidth: "88%",
-                  background: T.cream,
-                  color: T.ink,
-                  padding: "10px 14px",
-                  borderRadius: "14px 14px 14px 4px",
-                  fontSize: "13.5px",
-                  lineHeight: 1.55,
-                  border: `1px solid ${T.border}`,
-                }}
-              >
-                Entiendo perfectamente, y es completamente confidencial. Cuénteme desde cuándo lo nota y revisemos juntos
-                las opciones, paso a paso.
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "5px", paddingLeft: "4px", paddingTop: "2px" }}>
-                <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
-                <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
-                <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
-              </div>
+            <div style={{ fontSize: "15px", fontWeight: 800, color: T.charcoal, marginBottom: "8px" }}>
+              Evaluación inicial inmediata
             </div>
+            <p style={{ fontSize: "13.5px", lineHeight: 1.55, color: T.muted, margin: 0 }}>
+              Entiende qué puede estar pasando y qué información clínica conviene revisar antes de tomar decisiones.
+            </p>
           </div>
         </div>
       </section>
+
+      <PhoneMockup />
 
       {/* Trust strip */}
       <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "18px 24px 36px" }}>
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
             gap: "1px",
             background: T.border,
             border: `1px solid ${T.border}`,
@@ -306,13 +407,70 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           }}
         >
           {[
-            ["Privacidad ante todo", "Tus conversaciones son confidenciales y tu información se mantiene protegida."],
-            ["Criterio clínico", "Orientación con tono médico profesional, fundamentada y sin juicios."],
-            ["Atención inmediata", "Respuestas claras a cualquier hora, sin salas de espera ni agendas."],
+            ["100% confidencial", "Tus respuestas se tratan como información privada.", "✓"],
+            ["Disponible 24/7", "Orientación cuando aparece la duda, sin esperar cita.", "24"],
+            ["Supervisión médica", "Diseñado para acompañarte con criterio clínico.", "+"],
+            ["Respuesta inmediata", "Empieza a ordenar tu caso desde el primer mensaje.", "→"],
+          ].map(([t, d, icon]) => (
+            <div key={t} style={{ background: T.cream, padding: "20px 22px", display: "flex", gap: "13px", alignItems: "flex-start" }}>
+              <BenefitIcon>{icon}</BenefitIcon>
+              <div>
+                <div style={{ fontSize: "14px", fontWeight: 800, color: T.charcoal, marginBottom: "6px" }}>{t}</div>
+                <div style={{ fontSize: "13px", lineHeight: 1.5, color: T.muted }}>{d}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "0 24px 28px" }}>
+        <div
+          style={{
+            background: T.white,
+            border: `1px solid ${T.border}`,
+            borderRadius: "14px",
+            padding: "20px 22px",
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 0.35fr) minmax(0, 0.65fr)",
+            gap: "14px",
+            alignItems: "center",
+          }}
+          className="credentials-grid"
+        >
+          <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.gold }}>
+            Dirección médica
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 16px" }}>
+            {MEDICAL_CREDENTIALS.map((item) => (
+              <span key={item} style={{ fontSize: "13.5px", fontWeight: item.startsWith("Dr.") ? 800 : 600, color: T.charcoal }}>
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "30px 24px 24px" }}>
+        <div style={{ maxWidth: "620px", marginBottom: "28px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.gold, marginBottom: "12px" }}>
+            ¿Por qué Vitalis?
+          </div>
+          <h2 style={{ fontFamily: display, fontSize: "30px", fontWeight: 600, color: T.charcoal, margin: 0, lineHeight: 1.15 }}>
+            Diferente a un chatbot genérico desde la primera pregunta.
+          </h2>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: "16px" }}>
+          {[
+            ["Enfoque en salud sexual masculina", "No responde de todo: guía conversaciones sobre función sexual, deseo, desempeño y señales de alerta."],
+            ["Lenguaje médico claro", "Traduce la información clínica a pasos comprensibles, sin prometer curas ni empujar decisiones impulsivas."],
+            ["Evaluación estructurada", "Ordena síntomas, hábitos, antecedentes y contexto antes de sugerir próximos pasos."],
+            ["Confidencialidad como base", "La experiencia está diseñada para temas sensibles que muchos hombres evitan tratar en consulta."],
+            ["Escalamiento responsable", "Indica cuándo una situación debe revisarse con atención presencial o de urgencia."],
+            ["Seguimiento del plan", "Puede acompañar adherencia, ejercicios y evolución cuando el usuario activa el programa completo."],
           ].map(([t, d]) => (
-            <div key={t} style={{ background: T.cream, padding: "20px 22px" }}>
-              <div style={{ fontSize: "14px", fontWeight: 800, color: T.charcoal, marginBottom: "6px" }}>{t}</div>
-              <div style={{ fontSize: "13px", lineHeight: 1.5, color: T.muted }}>{d}</div>
+            <div key={t} className="card-lift" style={{ background: T.white, border: `1px solid ${T.border}`, borderRadius: "14px", padding: "22px" }}>
+              <h3 style={{ fontSize: "16px", fontWeight: 800, color: T.charcoal, margin: "0 0 9px" }}>{t}</h3>
+              <p style={{ fontSize: "13.5px", lineHeight: 1.58, color: T.muted, margin: 0 }}>{d}</p>
             </div>
           ))}
         </div>
@@ -406,6 +564,17 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
 
       {/* Testimonios */}
       <section style={{ maxWidth: "1120px", margin: "0 auto", padding: "40px 24px" }}>
+        <div style={{ maxWidth: "680px", marginBottom: "22px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase", color: T.gold, marginBottom: "10px" }}>
+            Prueba social
+          </div>
+          <h2 style={{ fontFamily: display, fontSize: "28px", fontWeight: 600, color: T.charcoal, margin: "0 0 8px" }}>
+            Experiencias piloto mientras Vitalis publica métricas verificadas
+          </h2>
+          <p style={{ fontSize: "13.5px", lineHeight: 1.55, color: T.muted, margin: 0 }}>
+            No hay número de evaluaciones ni reseñas públicas verificables en este repositorio; por eso no se muestran cifras no confirmadas.
+          </p>
+        </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "18px" }}>
           {[
             ["Por fin pude hablar de algo que llevaba años evitando. Sin pena y a mi ritmo.", "Andrés M.", "41 años · Guadalajara"],
@@ -482,23 +651,29 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
               </li>
             ))}
           </ul>
-          <button
-            onClick={onSubscribe}
-            className="btn btn-primary"
-            style={{
-              width: "100%",
-              padding: "16px",
-              background: T.gold,
-              color: T.white,
-              border: "none",
-              borderRadius: "999px",
-              fontSize: "15px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Activar Vitalis Pro
-          </button>
+          {subscription.isPro ? (
+            <div style={{ padding: "14px", borderRadius: "12px", background: "rgba(45,125,111,0.10)", color: T.teal, fontSize: "15px", fontWeight: 800 }}>
+              Vitalis Pro activo
+            </div>
+          ) : (
+            <button
+              onClick={onSubscribe}
+              className="btn btn-primary"
+              style={{
+                width: "100%",
+                padding: "16px",
+                background: T.gold,
+                color: T.white,
+                border: "none",
+                borderRadius: "999px",
+                fontSize: "15px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Activar Vitalis Pro
+            </button>
+          )}
         </div>
       </section>
 
@@ -761,19 +936,63 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+const ChatView = ({
+  perfil,
+  subscription,
+  onSubscribe,
+  subscribing,
+}: {
+  perfil: Perfil;
+  subscription: SubscriptionStatus;
+  onSubscribe: () => void;
+  subscribing: boolean;
+}) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
-    { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
+    { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. ${ASSISTANT_INTRO}` },
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const isPro = subscription.isPro;
+  const preguntasGratis = msgs.filter((m) => m.role === "user").length;
+  const limiteAlcanzado = !isPro && preguntasGratis >= FREE_QUESTION_LIMIT;
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, loading]);
 
   const send = async (text: string) => {
     if (!text.trim() || loading) return;
+    const normalizedText = text.toLowerCase();
+    const asksAboutLimit =
+      normalizedText.includes("cuántas preguntas") ||
+      normalizedText.includes("cuantas preguntas") ||
+      normalizedText.includes("consultas ilimitadas") ||
+      normalizedText.includes("límite") ||
+      normalizedText.includes("limite") ||
+      normalizedText.includes("pago") ||
+      normalizedText.includes("suscrip");
+
+    if (asksAboutLimit) {
+      const reply = isPro
+        ? "Tu cuenta Vitalis Pro está activa. Puedes realizar consultas ilimitadas y acceder al protocolo completo."
+        : "Puedes realizar una orientación inicial limitada. Para continuar con consultas ilimitadas y protocolo completo, activa Vitalis Pro.";
+      setMsgs((p) => [...p, { role: "user", content: text }, { role: "assistant", content: reply }]);
+      setInput("");
+      return;
+    }
+
+    if (limiteAlcanzado) {
+      setMsgs((p) => [
+        ...p,
+        {
+          role: "assistant",
+          content: "Has llegado al límite de orientación inicial gratuita. Para continuar con consultas ilimitadas y protocolo completo, activa Vitalis Pro.",
+        },
+      ]);
+      setInput("");
+      return;
+    }
+
     const newMsgs: ChatMessage[] = [...msgs, { role: "user", content: text }];
     setMsgs(newMsgs);
     setInput("");
@@ -783,7 +1002,7 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: `Eres el Dr. Vitalis, urólogo especialista en salud sexual masculina. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Responde siempre en español, con tono médico profesional, claro y empático. No uses emojis.`,
+          systemPrompt: `Eres el asistente digital de Vitalis para orientación inicial en salud sexual masculina bajo el enfoque médico del Dr. José Rogelio Sánchez García, Medicina Interna y Terapia Intensiva, Céd. Prof. 4273375 / 6525546, Centro de Salud Sexual Masculina. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Responde siempre en español, con tono médico profesional, claro y empático. No abras diciendo "no soy médico real". Incluye el matiz de que la información no sustituye una consulta médica formal cuando sea clínicamente necesario, sin quitar autoridad al proyecto. No prometas consultas ilimitadas si el usuario no tiene Vitalis Pro. Estado de cuenta: ${isPro ? "Vitalis Pro activo, consultas ilimitadas y protocolo completo" : `gratuito, máximo ${FREE_QUESTION_LIMIT} preguntas de orientación inicial`}. Si preguntan cuántas preguntas puede hacer o por pagos, responde exactamente según el estado de cuenta indicado. No uses emojis.`,
           messages: newMsgs,
         }),
       });
@@ -815,9 +1034,14 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
             <div style={{ fontSize: "15px", fontWeight: 700, color: T.charcoal }}>Dr. Vitalis</div>
             <div style={{ fontSize: "11px", color: T.teal, display: "flex", alignItems: "center", gap: "5px" }}>
               <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
-              En línea · Urología
+              En línea · Dirección médica Vitalis
             </div>
           </div>
+        </div>
+        <div style={{ fontSize: "12px", color: T.muted, textAlign: "right", lineHeight: 1.35 }}>
+          {MEDICAL_CREDENTIALS.map((item) => (
+            <div key={item}>{item}</div>
+          ))}
         </div>
       </div>
 
@@ -833,25 +1057,31 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
           flexWrap: "wrap",
         }}
       >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
-        <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
-          style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
-            borderRadius: "999px",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
-        </button>
+        <span style={{ fontSize: "12.5px", color: T.ink }}>
+          {isPro
+            ? "Vitalis Pro activo · Consultas ilimitadas, protocolo completo y contenido exclusivo desbloqueado."
+            : `Orientación gratuita: ${Math.max(FREE_QUESTION_LIMIT - preguntasGratis, 0)} de ${FREE_QUESTION_LIMIT} preguntas disponibles. Activa Vitalis Pro para continuar sin límite.`}
+        </span>
+        {!isPro && (
+          <button
+            onClick={onSubscribe}
+            disabled={subscribing}
+            className="btn btn-primary"
+            style={{
+              padding: "9px 18px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: subscribing ? "wait" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -920,6 +1150,25 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
               </div>
             </div>
           )}
+          {limiteAlcanzado && (
+            <div style={{ background: T.white, border: `1px solid ${T.gold}`, borderRadius: "14px", padding: "16px", color: T.ink }}>
+              <div style={{ fontSize: "14px", fontWeight: 800, marginBottom: "6px" }}>Límite gratuito alcanzado</div>
+              <div style={{ fontSize: "13.5px", color: T.muted, lineHeight: 1.5, marginBottom: "12px" }}>
+                Para continuar con consultas ilimitadas, protocolo completo y contenido exclusivo, activa Vitalis Pro.
+              </div>
+              <button onClick={onSubscribe} disabled={subscribing} className="btn btn-primary" style={{ padding: "10px 18px", background: T.gold, color: T.white, border: "none", borderRadius: "999px", fontSize: "13px", fontWeight: 700, cursor: subscribing ? "wait" : "pointer" }}>
+                {subscribing ? "Procesando..." : `Activar Vitalis Pro — ${PRECIO}/mes`}
+              </button>
+            </div>
+          )}
+          {isPro && (
+            <div style={{ background: "rgba(45,125,111,0.08)", border: `1px solid rgba(45,125,111,0.24)`, borderRadius: "14px", padding: "14px 16px", color: T.ink }}>
+              <div style={{ fontSize: "14px", fontWeight: 800, marginBottom: "6px" }}>Contenido Pro desbloqueado</div>
+              <div style={{ fontSize: "13.5px", color: T.muted, lineHeight: 1.5 }}>
+                Protocolo completo, consultas ilimitadas, seguimiento de adherencia y beneficios Pro activos en esta cuenta.
+              </div>
+            </div>
+          )}
           <div ref={endRef} />
         </div>
       </div>
@@ -930,7 +1179,8 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
             className="field"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Escriba su consulta..."
+            disabled={limiteAlcanzado}
+            placeholder={limiteAlcanzado ? "Activa Vitalis Pro para continuar..." : "Escriba su consulta..."}
             onKeyDown={(e) => {
               if (e.key === "Enter") send(input);
             }}
@@ -938,15 +1188,15 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
           />
           <button
             onClick={() => send(input)}
-            disabled={!input.trim() || loading}
+            disabled={!input.trim() || loading || limiteAlcanzado}
             className="btn btn-primary"
             style={{
               padding: "12px 24px",
-              background: !input.trim() || loading ? T.border : T.gold,
+              background: !input.trim() || loading || limiteAlcanzado ? T.border : T.gold,
               color: T.white,
               border: "none",
               borderRadius: "999px",
-              cursor: !input.trim() || loading ? "not-allowed" : "pointer",
+              cursor: !input.trim() || loading || limiteAlcanzado ? "not-allowed" : "pointer",
               fontWeight: 700,
               fontSize: "14px",
             }}
@@ -962,19 +1212,50 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 export default function App() {
   const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+  const [subscription, setSubscription] = useState<SubscriptionStatus>({ isPro: false, status: "unknown", plan: "free", renewalDate: null });
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("vitalis_perfil");
+    let restoredProfile: Perfil | null = null;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as Perfil;
+        const restored = { ...parsed, email: normalizarEmail(parsed.email || "") };
+        restoredProfile = restored;
+        setPerfil(restored);
+        if (restored.email) {
+          consultarSuscripcion(restored.email).then(setSubscription);
+        }
+      } catch {
+        window.localStorage.removeItem("vitalis_perfil");
+      }
+    }
+
+    if (new URLSearchParams(window.location.search).get("success") === "true") {
+      if (restoredProfile?.email) {
+        consultarSuscripcion(restoredProfile.email).then(setSubscription);
+      }
       setScreen("success");
       window.history.replaceState({}, "", "/");
     }
   }, []);
 
   const irACheckout = async (p: Perfil) => {
+    const normalized = { ...p, email: normalizarEmail(p.email) };
+    const currentStatus = await consultarSuscripcion(normalized.email);
+    setSubscription(currentStatus);
+    if (currentStatus.isPro) {
+      setPerfil(normalized);
+      setScreen("chat");
+      return;
+    }
+
     setRedirecting(true);
-    const url = await iniciarCheckout(p);
+    window.localStorage.setItem("vitalis_perfil", JSON.stringify(normalized));
+    const url = await iniciarCheckout(normalized);
     if (url) {
       window.location.href = url;
     } else {
@@ -983,11 +1264,15 @@ export default function App() {
     }
   };
 
-  const completarOnboarding = (p: Perfil) => {
-    setPerfil(p);
+  const completarOnboarding = async (p: Perfil) => {
+    const normalized = { ...p, email: normalizarEmail(p.email) };
+    setPerfil(normalized);
+    window.localStorage.setItem("vitalis_perfil", JSON.stringify(normalized));
     if (intent === "subscribe") {
-      irACheckout(p);
+      irACheckout(normalized);
     } else {
+      const currentStatus = await consultarSuscripcion(normalized.email);
+      setSubscription(currentStatus);
       setScreen("chat");
     }
   };
@@ -996,6 +1281,7 @@ export default function App() {
     <>
       {screen === "landing" && (
         <Landing
+          subscription={subscription}
           onStart={() => {
             setIntent("chat");
             setScreen("onboarding");
@@ -1010,6 +1296,7 @@ export default function App() {
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
+          subscription={subscription}
           subscribing={redirecting}
           onSubscribe={() => {
             setIntent("subscribe");
