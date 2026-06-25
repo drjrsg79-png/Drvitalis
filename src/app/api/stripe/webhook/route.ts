@@ -4,6 +4,7 @@ import {
   activarSuscripcion,
   actualizarEstadoPorSubscriptionId,
   marcarPorCustomerId,
+  upsertUsuario,
 } from "@/lib/db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
@@ -36,6 +37,12 @@ export async function POST(req: NextRequest) {
           typeof session.subscription === "string" ? session.subscription : null;
         if (userId) {
           await activarSuscripcion(userId, customerId, subscriptionId);
+        } else if (session.customer_details?.email) {
+          const recoveredUserId = await upsertUsuario({
+            email: session.customer_details.email,
+            nombre: session.customer_details.name || "",
+          });
+          await activarSuscripcion(recoveredUserId, customerId, subscriptionId);
         }
         break;
       }
@@ -68,4 +75,3 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ received: true });
 }
-

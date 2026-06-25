@@ -13,15 +13,18 @@ export type UsuarioBasico = {
   condicion?: string;
 };
 
+const normalizarEmail = (email: string) => email.trim().toLowerCase();
+
 // Crea o actualiza el usuario por correo y devuelve su id.
 export async function upsertUsuario(perfil: UsuarioBasico): Promise<string> {
+  const email = normalizarEmail(perfil.email);
   const edad = perfil.edad && /^\d+$/.test(perfil.edad.trim())
     ? parseInt(perfil.edad.trim(), 10)
     : null;
 
   const filas = await db.sql<{ id: string }>`
     insert into users (email, nombre, edad, pais, condicion)
-    values (${perfil.email}, ${perfil.nombre || null}, ${edad}, ${perfil.pais || null}, ${perfil.condicion || null})
+    values (${email}, ${perfil.nombre || null}, ${edad}, ${perfil.pais || null}, ${perfil.condicion || null})
     on conflict (email) do update set
       nombre    = coalesce(excluded.nombre, users.nombre),
       edad      = coalesce(excluded.edad, users.edad),
@@ -30,6 +33,28 @@ export async function upsertUsuario(perfil: UsuarioBasico): Promise<string> {
     returning id
   `;
   return filas[0].id;
+}
+
+export async function obtenerAccesoPorEmail(email: string): Promise<{
+  activo: boolean;
+  userId: string | null;
+  nombre: string | null;
+}> {
+  const filas = await db.sql<{ id: string; nombre: string | null; status: string | null }>`
+    select users.id, users.nombre, subscriptions.status
+    from users
+    left join subscriptions on subscriptions.user_id = users.id
+    where users.email = ${normalizarEmail(email)}
+    limit 1
+  `;
+  const fila = filas[0];
+  if (!fila) return { activo: false, userId: null, nombre: null };
+
+  return {
+    activo: ["active", "trialing"].includes(fila.status || ""),
+    userId: fila.id,
+    nombre: fila.nombre,
+  };
 }
 
 // Garantiza una fila de suscripción para el usuario (estado inicial 'inactive').
@@ -48,11 +73,12 @@ export async function activarSuscripcion(
   stripeSubscriptionId: string | null
 ): Promise<void> {
   await db.sql`
-    update subscriptions set
+    insert into subscriptions (user_id, status, stripe_customer_id, stripe_subscription_id)
+    values (${userId}, 'active', ${stripeCustomerId}, ${stripeSubscriptionId})
+    on conflict (user_id) do update set
       status                 = 'active',
-      stripe_customer_id     = coalesce(${stripeCustomerId}, stripe_customer_id),
-      stripe_subscription_id = coalesce(${stripeSubscriptionId}, stripe_subscription_id)
-    where user_id = ${userId}
+      stripe_customer_id     = coalesce(excluded.stripe_customer_id, subscriptions.stripe_customer_id),
+      stripe_subscription_id = coalesce(excluded.stripe_subscription_id, subscriptions.stripe_subscription_id)
   `;
 }
 
