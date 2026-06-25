@@ -37,12 +37,13 @@ type AccessSession = {
   } | null;
   messages: ChatMessage[];
 };
+type CheckoutResult = { url: string | null; active: boolean };
 
 const PRECIO = "$599 MXN";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
-async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
+async function iniciarCheckout(perfil: Perfil): Promise<CheckoutResult> {
   try {
     const res = await fetch("/api/stripe/checkout", {
       method: "POST",
@@ -56,18 +57,18 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
       }),
     });
     const data = await res.json();
-    return data.url || null;
+    return { url: data.url || null, active: data.active === true };
   } catch {
-    return null;
+    return { url: null, active: false };
   }
 }
 
-async function consultarAcceso(perfil: Perfil): Promise<AccessSession | null> {
+async function consultarAcceso(perfil: Perfil, checkoutSessionId?: string | null): Promise<AccessSession | null> {
   try {
     const res = await fetch("/api/vitalis/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(perfil),
+      body: JSON.stringify({ email: perfil.email, checkoutSessionId }),
     });
     if (!res.ok) return null;
     return await res.json();
@@ -557,6 +558,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           Vitalis — Salud sexual masculina con IA. La información que ofrece el Dr. Vitalis es orientativa y no sustituye
           una consulta médica presencial ni la atención de urgencia.
         </p>
+        <p style={{ fontSize: "12.5px", color: T.muted, maxWidth: "560px", margin: "10px auto 0", lineHeight: 1.6 }}>
+          Dirección médica: Dr. Rogelio Sánchez. Cédulas profesionales disponibles para verificación.
+        </p>
       </footer>
     </div>
   </div>
@@ -941,9 +945,13 @@ export default function App() {
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
+  const [checkoutSessionId, setCheckoutSessionId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("success") !== "true") return;
+
       const saved = window.localStorage.getItem("vitalis_perfil");
       if (saved) {
         try {
@@ -952,6 +960,7 @@ export default function App() {
           window.localStorage.removeItem("vitalis_perfil");
         }
       }
+      setCheckoutSessionId(params.get("session_id"));
       setScreen("success");
       window.history.replaceState({}, "", "/");
     }
@@ -960,19 +969,25 @@ export default function App() {
   const irACheckout = async (p: Perfil) => {
     setRedirecting(true);
     window.localStorage.setItem("vitalis_perfil", JSON.stringify(p));
-    const url = await iniciarCheckout(p);
-    if (url) {
-      window.location.href = url;
+    const checkout = await iniciarCheckout(p);
+    if (checkout.active) {
+      setRedirecting(false);
+      await entrarSiPagoActivo(p);
+      return;
+    }
+    if (checkout.url) {
+      window.location.href = checkout.url;
     } else {
       setRedirecting(false);
       alert("No se pudo iniciar el pago. Verifica tus datos e intenta de nuevo.");
     }
   };
 
-  const entrarSiPagoActivo = async (p: Perfil) => {
+  const entrarSiPagoActivo = async (p: Perfil, sessionId = checkoutSessionId) => {
     setRedirecting(true);
-    const session = await consultarAcceso(p);
+    const session = await consultarAcceso(p, sessionId);
     setRedirecting(false);
+    if (session?.active && sessionId) setCheckoutSessionId(null);
 
     if (!session) {
       alert("No se pudo validar tu acceso. Intenta de nuevo.");
@@ -1028,7 +1043,7 @@ export default function App() {
           initialMessages={initialMessages}
         />
       )}
-      {screen === "success" && <SuccessBanner onContinue={() => perfil.email ? entrarSiPagoActivo(perfil) : setScreen("onboarding")} />}
+      {screen === "success" && <SuccessBanner onContinue={() => perfil.email ? entrarSiPagoActivo(perfil, checkoutSessionId) : setScreen("onboarding")} />}
     </>
   );
 }

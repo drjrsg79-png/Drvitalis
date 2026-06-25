@@ -64,6 +64,7 @@ export async function activarSuscripcion(
   stripeCustomerId: string | null,
   stripeSubscriptionId: string | null
 ): Promise<void> {
+  await asegurarSuscripcion(userId);
   await db.sql`
     update subscriptions set
       status                 = 'active',
@@ -71,6 +72,16 @@ export async function activarSuscripcion(
       stripe_subscription_id = coalesce(${stripeSubscriptionId}, stripe_subscription_id)
     where user_id = ${userId}
   `;
+}
+
+// Activa o reconcilia una suscripción usando el correo de Stripe como respaldo.
+export async function activarSuscripcionPorEmail(
+  email: string,
+  stripeCustomerId: string | null,
+  stripeSubscriptionId: string | null
+): Promise<void> {
+  const userId = await upsertUsuario({ email: email.trim().toLowerCase(), nombre: "" });
+  await activarSuscripcion(userId, stripeCustomerId, stripeSubscriptionId);
 }
 
 // Actualiza el estado de la suscripción por su id de Stripe (cancelaciones, etc.).

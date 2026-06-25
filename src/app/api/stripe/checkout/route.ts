@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
-import { upsertUsuario, asegurarSuscripcion } from "@/lib/db";
+import { upsertUsuario, asegurarSuscripcion, obtenerSesionPorEmail } from "@/lib/db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
@@ -11,6 +11,13 @@ export async function POST(req: NextRequest) {
     // Stripe exige URLs absolutas con esquema. NEXT_PUBLIC_URL puede venir como
     // "drvitalis1.com" sin protocolo, así que se normaliza.
     const baseUrl = /^https?:\/\//.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+
+    if (email) {
+      const existing = await obtenerSesionPorEmail(email);
+      if (existing.active) {
+        return NextResponse.json({ active: true });
+      }
+    }
 
     // Se persiste el perfil y se reserva su suscripción antes de cobrar.
     // Si la base de datos no estuviera disponible, el pago no se bloquea:
@@ -44,7 +51,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "subscription",
-      success_url: `${baseUrl}/?success=true`,
+      success_url: `${baseUrl}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/`,
       metadata: { nombre: nombre || "", user_id: userId || "" },
     });
