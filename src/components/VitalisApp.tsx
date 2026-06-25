@@ -26,10 +26,17 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type UserSession = {
+  perfil: Perfil;
+  subscriptionStatus: string;
+  hasActiveSubscription: boolean;
+  messages: ChatMessage[];
+};
 
 const PRECIO = "$599 MXN";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+const historyKey = (email: string) => `vitalisChat:${email.trim().toLowerCase()}`;
 
 async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   try {
@@ -46,6 +53,21 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
     });
     const data = await res.json();
     return data.url || null;
+  } catch {
+    return null;
+  }
+}
+
+async function buscarSesion(email: string): Promise<UserSession | null> {
+  try {
+    const res = await fetch("/api/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.session || null;
   } catch {
     return null;
   }
@@ -611,12 +633,13 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
   </div>
 );
 
-const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void }) => {
+const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil, session: UserSession | null) => void }) => {
   const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [touched, setTouched] = useState(false);
+  const [checking, setChecking] = useState(false);
   const nombreOk = form.nombre.trim() !== "";
   const correoOk = emailValido(form.email);
-  const valido = nombreOk && correoOk;
+  const valido = correoOk;
 
   const inputBase = {
     width: "100%",
@@ -629,9 +652,26 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
     color: T.ink,
   };
 
-  const submit = () => {
+  const submit = async () => {
     setTouched(true);
-    if (valido && !loading) onComplete(form);
+    if (!valido || loading || checking) return;
+    setChecking(true);
+    const session = await buscarSesion(form.email);
+    if (!session && !nombreOk) {
+      setChecking(false);
+      return;
+    }
+    const perfilCompleto = session
+      ? {
+          nombre: form.nombre.trim() || session.perfil.nombre,
+          email: session.perfil.email,
+          edad: form.edad.trim() || session.perfil.edad,
+          pais: form.pais.trim() || session.perfil.pais,
+          condicion: form.condicion.trim() || session.perfil.condicion,
+        }
+      : form;
+    onComplete(perfilCompleto, session);
+    setChecking(false);
   };
 
   return (
@@ -664,7 +704,7 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
             margin: "20px 0 14px",
           }}
         >
-          {intent === "subscribe" ? "Paso final · Activar Vitalis Pro" : "Paso 1 de 2 · Tu perfil"}
+          {intent === "subscribe" ? "Activar Vitalis Pro" : "Consulta gratuita"}
         </div>
         <h2 style={{ fontFamily: display, fontSize: "27px", fontWeight: 600, color: T.charcoal, margin: "0 0 8px" }}>
           Información personal
@@ -672,7 +712,7 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
         <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 26px", lineHeight: 1.55 }}>
           {intent === "subscribe"
             ? "Confirma tus datos para activar Vitalis Pro. El cobro se realiza de forma segura con Stripe."
-            : "Confidencial. Nos ayuda a personalizar la orientación del Dr. Vitalis."}
+            : "Si ya tienes cuenta, escribe tu correo para recuperar tu chat. Si eres nuevo, completa tu perfil para la consulta gratuita."}
         </p>
 
         <div style={{ marginBottom: "14px" }}>
@@ -727,22 +767,24 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
 
         <button
           onClick={submit}
-          disabled={loading}
+          disabled={loading || checking}
           className="btn btn-primary"
           style={{
             width: "100%",
             padding: "15px",
-            background: loading ? T.border : T.gold,
+            background: loading || checking ? T.border : T.gold,
             color: T.white,
             border: "none",
             borderRadius: "999px",
-            cursor: loading ? "wait" : "pointer",
+            cursor: loading || checking ? "wait" : "pointer",
             fontSize: "15px",
             fontWeight: 700,
           }}
         >
           {loading
             ? "Redirigiendo a pago seguro..."
+            : checking
+              ? "Consultando tu acceso..."
             : intent === "subscribe"
               ? `Continuar al pago — ${PRECIO}/mes`
               : "Continuar a la consulta"}
@@ -761,9 +803,26 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+const saludoInicial = (perfil: Perfil): ChatMessage => ({
+  role: "assistant",
+  content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?`,
+});
+
+const ChatView = ({
+  perfil,
+  initialMessages,
+  hasActiveSubscription,
+  onSubscribe,
+  subscribing,
+}: {
+  perfil: Perfil;
+  initialMessages: ChatMessage[];
+  hasActiveSubscription: boolean;
+  onSubscribe: () => void;
+  subscribing: boolean;
+}) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
-    { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
+    ...(initialMessages.length ? initialMessages : [saludoInicial(perfil)]),
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -771,6 +830,12 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, loading]);
+
+  useEffect(() => {
+    if (perfil.email && msgs.length) {
+      window.localStorage.setItem(historyKey(perfil.email), JSON.stringify(msgs));
+    }
+  }, [msgs, perfil.email]);
 
   const send = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -783,6 +848,7 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          email: perfil.email,
           systemPrompt: `Eres el Dr. Vitalis, urólogo especialista en salud sexual masculina. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Responde siempre en español, con tono médico profesional, claro y empático. No uses emojis.`,
           messages: newMsgs,
         }),
@@ -821,38 +887,40 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         </div>
       </div>
 
-      <div
-        style={{
-          background: "rgba(184,146,42,0.08)",
-          borderBottom: `1px solid ${T.border}`,
-          padding: "11px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
-        <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
+      {!hasActiveSubscription && (
+        <div
           style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
-            borderRadius: "999px",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
+            background: "rgba(184,146,42,0.08)",
+            borderBottom: `1px solid ${T.border}`,
+            padding: "11px 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
           }}
         >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
-        </button>
-      </div>
+          <span style={{ fontSize: "12.5px", color: T.ink }}>La consulta inicial es gratuita. Vitalis Pro solo activa protocolo completo y consultas ilimitadas.</span>
+          <button
+            onClick={onSubscribe}
+            disabled={subscribing}
+            className="btn btn-primary"
+            style={{
+              padding: "9px 18px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: subscribing ? "wait" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subscribing ? "Procesando..." : `Activar Pro — ${PRECIO}/mes`}
+          </button>
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ maxWidth: "760px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -962,18 +1030,41 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 export default function App() {
   const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+  const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
+      const saved = window.localStorage.getItem("vitalisPerfil");
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved) as Perfil;
+          setPerfil(parsed);
+          setHasActiveSubscription(true);
+          const savedMessages = window.localStorage.getItem(historyKey(parsed.email));
+          if (savedMessages) {
+            const parsedMessages = JSON.parse(savedMessages) as ChatMessage[];
+            if (Array.isArray(parsedMessages)) setInitialMessages(parsedMessages);
+          }
+        } catch {
+          window.localStorage.removeItem("vitalisPerfil");
+        }
+      }
       setScreen("success");
       window.history.replaceState({}, "", "/");
     }
   }, []);
 
   const irACheckout = async (p: Perfil) => {
+    if (!emailValido(p.email) || !p.nombre.trim()) {
+      setIntent("subscribe");
+      setScreen("onboarding");
+      return;
+    }
     setRedirecting(true);
+    window.localStorage.setItem("vitalisPerfil", JSON.stringify(p));
     const url = await iniciarCheckout(p);
     if (url) {
       window.location.href = url;
@@ -983,10 +1074,20 @@ export default function App() {
     }
   };
 
-  const completarOnboarding = (p: Perfil) => {
+  const completarOnboarding = (p: Perfil, session: UserSession | null) => {
     setPerfil(p);
+    window.localStorage.setItem("vitalisPerfil", JSON.stringify(p));
+    setInitialMessages(session?.messages?.length ? session.messages : []);
+    if (session?.messages?.length) {
+      window.localStorage.setItem(historyKey(p.email), JSON.stringify(session.messages));
+    }
+    setHasActiveSubscription(Boolean(session?.hasActiveSubscription));
     if (intent === "subscribe") {
-      irACheckout(p);
+      if (session?.hasActiveSubscription) {
+        setScreen("chat");
+      } else {
+        irACheckout(p);
+      }
     } else {
       setScreen("chat");
     }
@@ -1001,7 +1102,7 @@ export default function App() {
             setScreen("onboarding");
           }}
           onSubscribe={() => {
-            setIntent("subscribe");
+            setIntent("chat");
             setScreen("onboarding");
           }}
         />
@@ -1010,6 +1111,8 @@ export default function App() {
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
+          initialMessages={initialMessages}
+          hasActiveSubscription={hasActiveSubscription}
           subscribing={redirecting}
           onSubscribe={() => {
             setIntent("subscribe");
@@ -1017,7 +1120,14 @@ export default function App() {
           }}
         />
       )}
-      {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
+      {screen === "success" && (
+        <SuccessBanner
+          onContinue={() => {
+            setHasActiveSubscription(true);
+            setScreen(perfil.email ? "chat" : "onboarding");
+          }}
+        />
+      )}
     </>
   );
 }
