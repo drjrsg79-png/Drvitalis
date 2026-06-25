@@ -27,9 +27,182 @@ type Perfil = {
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
+type AuthUsuario = {
+  id: string;
+  email: string;
+  nombre: string | null;
+  edad: number | null;
+  pais: string | null;
+  condicion: string | null;
+  suscripcionActiva: boolean;
+};
+
 const PRECIO = "$599 MXN";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
+
+async function cerrarSesion(): Promise<void> {
+  try {
+    await fetch("/api/auth/salir", { method: "POST" });
+  } catch {
+    // Si falla la llamada, la página se recarga igual y el usuario queda
+    // sin sesión visible en el siguiente chequeo de /api/auth/yo.
+  }
+}
+
+const LoginModal = ({ onClose }: { onClose: () => void }) => {
+  const [email, setEmail] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [enviado, setEnviado] = useState(false);
+  const [error, setError] = useState("");
+
+  const solicitar = async () => {
+    if (!emailValido(email)) {
+      setError("Ingrese un correo válido.");
+      return;
+    }
+    setError("");
+    setEnviando(true);
+    try {
+      const res = await fetch("/api/auth/solicitar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setEnviado(true);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "No se pudo enviar el enlace. Intente de nuevo.");
+      }
+    } catch {
+      setError("Error de conexión. Intente de nuevo.");
+    }
+    setEnviando(false);
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 50,
+        background: "rgba(27,27,29,0.55)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "20px",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: T.white,
+          borderRadius: "20px",
+          padding: "32px 28px",
+          maxWidth: "380px",
+          width: "100%",
+          boxShadow: "0 30px 60px -20px rgba(0,0,0,0.4)",
+        }}
+      >
+        {enviado ? (
+          <>
+            <h3 style={{ fontFamily: display, fontSize: "20px", color: T.charcoal, margin: "0 0 10px" }}>
+              Revise su correo
+            </h3>
+            <p style={{ fontSize: "14px", color: T.muted, lineHeight: 1.55, margin: "0 0 20px" }}>
+              Le enviamos un enlace de acceso a <strong>{email}</strong>. Tóquelo desde su correo para
+              entrar — es válido durante 15 minutos.
+            </p>
+            <button
+              onClick={onClose}
+              className="btn btn-ghost"
+              style={{
+                width: "100%",
+                padding: "13px",
+                background: "transparent",
+                color: T.charcoal,
+                border: `1px solid ${T.border}`,
+                borderRadius: "999px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Cerrar
+            </button>
+          </>
+        ) : (
+          <>
+            <h3 style={{ fontFamily: display, fontSize: "20px", color: T.charcoal, margin: "0 0 10px" }}>
+              Iniciar sesión
+            </h3>
+            <p style={{ fontSize: "14px", color: T.muted, lineHeight: 1.55, margin: "0 0 18px" }}>
+              Ingrese su correo y le enviaremos un enlace de acceso seguro, sin contraseña.
+            </p>
+            <input
+              className="field"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="su@correo.com"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") solicitar();
+              }}
+              style={{
+                width: "100%",
+                padding: "13px 15px",
+                border: `1px solid ${T.border}`,
+                borderRadius: "999px",
+                fontSize: "14px",
+                background: T.cream,
+                color: T.ink,
+                marginBottom: "10px",
+                boxSizing: "border-box",
+              }}
+            />
+            {error && (
+              <p style={{ color: "#B3261E", fontSize: "12.5px", margin: "0 0 10px" }}>{error}</p>
+            )}
+            <button
+              onClick={solicitar}
+              disabled={enviando}
+              className="btn btn-primary"
+              style={{
+                width: "100%",
+                padding: "14px",
+                background: T.gold,
+                color: T.white,
+                border: "none",
+                borderRadius: "999px",
+                fontWeight: 700,
+                cursor: enviando ? "wait" : "pointer",
+                marginBottom: "10px",
+              }}
+            >
+              {enviando ? "Enviando..." : "Enviar enlace de acceso"}
+            </button>
+            <button
+              onClick={onClose}
+              className="btn btn-ghost"
+              style={{
+                width: "100%",
+                padding: "11px",
+                background: "transparent",
+                color: T.muted,
+                border: "none",
+                fontSize: "13px",
+                cursor: "pointer",
+              }}
+            >
+              Cancelar
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   try {
@@ -81,7 +254,19 @@ const Header = () => (
   </div>
 );
 
-const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: () => void }) => (
+const Landing = ({
+  onStart,
+  onSubscribe,
+  auth,
+  onOpenLogin,
+  onLogout,
+}: {
+  onStart: () => void;
+  onSubscribe: () => void;
+  auth: AuthUsuario | null;
+  onOpenLogin: () => void;
+  onLogout: () => void;
+}) => (
   <div style={{ minHeight: "100vh", background: T.cream, color: T.ink }}>
     {/* Atmospheric backdrop */}
     <div
@@ -104,25 +289,50 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           padding: "20px 24px",
           maxWidth: "1120px",
           margin: "0 auto",
+          gap: "10px",
         }}
       >
         <Header />
-        <button
-          onClick={onStart}
-          className="btn btn-ghost"
-          style={{
-            padding: "10px 20px",
-            background: "transparent",
-            color: T.charcoal,
-            border: `1px solid ${T.border}`,
-            borderRadius: "999px",
-            fontSize: "13px",
-            fontWeight: 700,
-            cursor: "pointer",
-          }}
-        >
-          Entrar
-        </button>
+        {auth ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+            <span style={{ fontSize: "12.5px", color: T.muted, display: "none" }} className="auth-email-desktop">
+              {auth.email}
+            </span>
+            <button
+              onClick={onLogout}
+              className="btn btn-ghost"
+              style={{
+                padding: "10px 18px",
+                background: "transparent",
+                color: T.charcoal,
+                border: `1px solid ${T.border}`,
+                borderRadius: "999px",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onOpenLogin}
+            className="btn btn-ghost"
+            style={{
+              padding: "10px 20px",
+              background: "transparent",
+              color: T.charcoal,
+              border: `1px solid ${T.border}`,
+              borderRadius: "999px",
+              fontSize: "13px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Iniciar sesión
+          </button>
+        )}
       </header>
 
       {/* Hero — asymmetric, editorial */}
@@ -484,20 +694,21 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           </ul>
           <button
             onClick={onSubscribe}
+            disabled={!!auth?.suscripcionActiva}
             className="btn btn-primary"
             style={{
               width: "100%",
               padding: "16px",
-              background: T.gold,
-              color: T.white,
+              background: auth?.suscripcionActiva ? T.border : T.gold,
+              color: auth?.suscripcionActiva ? T.muted : T.white,
               border: "none",
               borderRadius: "999px",
               fontSize: "15px",
               fontWeight: 700,
-              cursor: "pointer",
+              cursor: auth?.suscripcionActiva ? "default" : "pointer",
             }}
           >
-            Activar Vitalis Pro
+            {auth?.suscripcionActiva ? "Ya tienes Vitalis Pro ✓" : "Activar Vitalis Pro"}
           </button>
         </div>
       </section>
@@ -611,8 +822,18 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
   </div>
 );
 
-const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void }) => {
-  const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+const Onboarding = ({
+  intent,
+  loading,
+  onComplete,
+  correoFijo,
+}: {
+  intent: Intent;
+  loading: boolean;
+  onComplete: (p: Perfil) => void;
+  correoFijo?: string;
+}) => {
+  const [form, setForm] = useState<Perfil>({ nombre: "", email: correoFijo || "", edad: "", pais: "", condicion: "" });
   const [touched, setTouched] = useState(false);
   const nombreOk = form.nombre.trim() !== "";
   const correoOk = emailValido(form.email);
@@ -694,8 +915,14 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
             placeholder="Correo electrónico"
             type="email"
             value={form.email}
+            disabled={!!correoFijo}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
-            style={{ ...inputBase, borderColor: touched && !correoOk ? "#C0492F" : T.border }}
+            style={{
+              ...inputBase,
+              borderColor: touched && !correoOk ? "#C0492F" : T.border,
+              background: correoFijo ? T.creamDeep : T.white,
+              color: correoFijo ? T.muted : T.ink,
+            }}
           />
           {touched && !correoOk && (
             <div style={{ fontSize: "12px", color: "#C0492F", marginTop: "6px" }}>Escribe un correo electrónico válido.</div>
@@ -761,7 +988,19 @@ const SUGERENCIAS = [
   "¿Qué tipos de tratamiento existen para mi caso?",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+const ChatView = ({
+  perfil,
+  onSubscribe,
+  subscribing,
+  auth,
+  onLogout,
+}: {
+  perfil: Perfil;
+  onSubscribe: () => void;
+  subscribing: boolean;
+  auth: AuthUsuario | null;
+  onLogout: () => void;
+}) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
   ]);
@@ -824,40 +1063,59 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
             </div>
           </div>
         </div>
+        {auth && (
+          <button
+            onClick={onLogout}
+            style={{
+              padding: "8px 14px",
+              background: "transparent",
+              color: T.muted,
+              border: `1px solid ${T.border}`,
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: "pointer",
+            }}
+          >
+            Cerrar sesión
+          </button>
+        )}
       </div>
 
-      <div
-        style={{
-          background: "rgba(184,146,42,0.08)",
-          borderBottom: `1px solid ${T.border}`,
-          padding: "11px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para consultas ilimitadas y seguimiento completo.</span>
-        <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
+      {!auth?.suscripcionActiva && (
+        <div
           style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
-            borderRadius: "999px",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
+            background: "rgba(184,146,42,0.08)",
+            borderBottom: `1px solid ${T.border}`,
+            padding: "11px 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
           }}
         >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
-        </button>
-      </div>
+          <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para consultas ilimitadas y seguimiento completo.</span>
+          <button
+            onClick={onSubscribe}
+            disabled={subscribing}
+            className="btn btn-primary"
+            style={{
+              padding: "9px 18px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: subscribing ? "wait" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
+          </button>
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ maxWidth: "760px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -969,10 +1227,63 @@ export default function App() {
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
+  const [auth, setAuth] = useState<AuthUsuario | null>(null);
+  const [authCargado, setAuthCargado] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [authAviso, setAuthAviso] = useState<string | null>(null);
+
+  const consultarSesion = async () => {
+    try {
+      const res = await fetch("/api/auth/yo");
+      const data = await res.json();
+      if (data.autenticado) {
+        setAuth(data.usuario);
+        // Si ya hay sesión y perfil médico guardado, se usa para precargar
+        // el chat directamente sin pedirlo otra vez.
+        if (data.usuario.nombre) {
+          setPerfil({
+            nombre: data.usuario.nombre || "",
+            email: data.usuario.email || "",
+            edad: data.usuario.edad ? String(data.usuario.edad) : "",
+            pais: data.usuario.pais || "",
+            condicion: data.usuario.condicion || "",
+          });
+        }
+      } else {
+        setAuth(null);
+      }
+    } catch {
+      setAuth(null);
+    }
+    setAuthCargado(true);
+  };
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
+    consultarSesion();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("success") === "true") {
       setScreen("success");
+      window.history.replaceState({}, "", "/");
+      // Tras un pago exitoso se refresca el estado de sesión para reflejar
+      // la suscripción activa de inmediato.
+      consultarSesion();
+    }
+
+    const authParam = params.get("auth");
+    if (authParam === "ok") {
+      setAuthAviso("Sesión iniciada correctamente.");
+      window.history.replaceState({}, "", "/");
+      consultarSesion();
+    } else if (authParam === "expirado") {
+      setAuthAviso("El enlace expiró o ya fue usado. Solicite uno nuevo.");
+      window.history.replaceState({}, "", "/");
+    } else if (authParam === "error") {
+      setAuthAviso("No se pudo iniciar sesión. Intente de nuevo.");
       window.history.replaceState({}, "", "/");
     }
   }, []);
@@ -997,8 +1308,43 @@ export default function App() {
     }
   };
 
+  const manejarLogout = async () => {
+    await cerrarSesion();
+    setAuth(null);
+    setScreen("landing");
+  };
+
+  // Mientras se confirma si hay sesión activa, se evita parpadear el botón
+  // de pago: no se muestra nada del estado de Pro hasta saberlo con certeza.
+  if (!authCargado) {
+    return (
+      <div style={{ minHeight: "100vh", background: T.cream }} />
+    );
+  }
+
   return (
     <>
+      {authAviso && (
+        <div
+          style={{
+            position: "fixed",
+            top: "14px",
+            left: "50%",
+            transform: "translateX(-50%)",
+            zIndex: 60,
+            background: T.charcoal,
+            color: T.white,
+            padding: "11px 20px",
+            borderRadius: "999px",
+            fontSize: "13px",
+            boxShadow: "0 10px 30px -10px rgba(0,0,0,0.5)",
+          }}
+          onClick={() => setAuthAviso(null)}
+        >
+          {authAviso}
+        </div>
+      )}
+      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
       {screen === "landing" && (
         <Landing
           onStart={() => {
@@ -1009,9 +1355,19 @@ export default function App() {
             setIntent("subscribe");
             setScreen("onboarding");
           }}
+          auth={auth}
+          onOpenLogin={() => setShowLogin(true)}
+          onLogout={manejarLogout}
         />
       )}
-      {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting} onComplete={completarOnboarding} />}
+      {screen === "onboarding" && (
+        <Onboarding
+          intent={intent}
+          loading={redirecting}
+          onComplete={completarOnboarding}
+          correoFijo={auth?.email}
+        />
+      )}
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
@@ -1020,6 +1376,8 @@ export default function App() {
             setIntent("subscribe");
             irACheckout(perfil);
           }}
+          auth={auth}
+          onLogout={manejarLogout}
         />
       )}
       {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
