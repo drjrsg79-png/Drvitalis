@@ -20,7 +20,7 @@ const body = Manrope({
 export const metadata: Metadata = {
   title: "Vitalis — Salud Sexual Masculina con Acompañamiento Clínico",
   description:
-    "El Dr. Vitalis te acompaña de forma privada y profesional. Orientación inmediata, protocolo personalizado con dosis exactas y ejercicios terapéuticos. Disponible 24/7.",
+    "El Dr. Vitalis te acompaña de forma privada y profesional. Orientación inmediata, ejercicios terapéuticos guiados y seguimiento de tu progreso. Disponible 24/7.",
 };
 
 export default function RootLayout({
