@@ -26,6 +26,17 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type AccessSession = {
+  active: boolean;
+  user: {
+    nombre: string | null;
+    email: string;
+    edad: number | null;
+    pais: string | null;
+    condicion: string | null;
+  } | null;
+  messages: ChatMessage[];
+};
 
 const PRECIO = "$599 MXN";
 
@@ -46,6 +57,20 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
     });
     const data = await res.json();
     return data.url || null;
+  } catch {
+    return null;
+  }
+}
+
+async function consultarAcceso(perfil: Perfil): Promise<AccessSession | null> {
+  try {
+    const res = await fetch("/api/vitalis/session", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(perfil),
+    });
+    if (!res.ok) return null;
+    return await res.json();
   } catch {
     return null;
   }
@@ -191,23 +216,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
-            </button>
-            <button
-              onClick={onSubscribe}
-              className="btn btn-ghost"
-              style={{
-                padding: "15px 30px",
-                background: "transparent",
-                color: T.charcoal,
-                border: `1px solid ${T.charcoal}`,
-                borderRadius: "999px",
-                fontSize: "15px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Conocer el programa
+              Iniciar test o entrar a mi chat
             </button>
           </div>
           <div
@@ -761,10 +770,9 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
-  const [msgs, setMsgs] = useState<ChatMessage[]>([
-    { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
-  ]);
+const ChatView = ({ perfil, initialMessages }: { perfil: Perfil; initialMessages: ChatMessage[] }) => {
+  const saludo = { role: "assistant" as const, content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` };
+  const [msgs, setMsgs] = useState<ChatMessage[]>(initialMessages.length ? initialMessages : [saludo]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -784,6 +792,7 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           systemPrompt: `Eres el Dr. Vitalis, urólogo especialista en salud sexual masculina. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Responde siempre en español, con tono médico profesional, claro y empático. No uses emojis.`,
+          email: perfil.email,
           messages: newMsgs,
         }),
       });
@@ -819,39 +828,6 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
             </div>
           </div>
         </div>
-      </div>
-
-      <div
-        style={{
-          background: "rgba(184,146,42,0.08)",
-          borderBottom: `1px solid ${T.border}`,
-          padding: "11px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
-        <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
-          style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
-            borderRadius: "999px",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
-        </button>
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -962,11 +938,20 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 export default function App() {
   const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+  const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
+      const saved = window.localStorage.getItem("vitalis_perfil");
+      if (saved) {
+        try {
+          setPerfil(JSON.parse(saved));
+        } catch {
+          window.localStorage.removeItem("vitalis_perfil");
+        }
+      }
       setScreen("success");
       window.history.replaceState({}, "", "/");
     }
@@ -974,6 +959,7 @@ export default function App() {
 
   const irACheckout = async (p: Perfil) => {
     setRedirecting(true);
+    window.localStorage.setItem("vitalis_perfil", JSON.stringify(p));
     const url = await iniciarCheckout(p);
     if (url) {
       window.location.href = url;
@@ -983,12 +969,41 @@ export default function App() {
     }
   };
 
+  const entrarSiPagoActivo = async (p: Perfil) => {
+    setRedirecting(true);
+    const session = await consultarAcceso(p);
+    setRedirecting(false);
+
+    if (!session) {
+      alert("No se pudo validar tu acceso. Intenta de nuevo.");
+      return;
+    }
+
+    const perfilGuardado: Perfil = {
+      nombre: session.user?.nombre || p.nombre,
+      email: session.user?.email || p.email,
+      edad: session.user?.edad ? String(session.user.edad) : p.edad,
+      pais: session.user?.pais || p.pais,
+      condicion: session.user?.condicion || p.condicion,
+    };
+
+    setPerfil(perfilGuardado);
+
+    if (session.active) {
+      setInitialMessages(session.messages || []);
+      window.localStorage.setItem("vitalis_perfil", JSON.stringify(perfilGuardado));
+      setScreen("chat");
+    } else {
+      await irACheckout(perfilGuardado);
+    }
+  };
+
   const completarOnboarding = (p: Perfil) => {
     setPerfil(p);
     if (intent === "subscribe") {
       irACheckout(p);
     } else {
-      setScreen("chat");
+      entrarSiPagoActivo(p);
     }
   };
 
@@ -1010,14 +1025,10 @@ export default function App() {
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
-          subscribing={redirecting}
-          onSubscribe={() => {
-            setIntent("subscribe");
-            irACheckout(perfil);
-          }}
+          initialMessages={initialMessages}
         />
       )}
-      {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
+      {screen === "success" && <SuccessBanner onContinue={() => perfil.email ? entrarSiPagoActivo(perfil) : setScreen("onboarding")} />}
     </>
   );
 }
