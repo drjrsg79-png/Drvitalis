@@ -28,6 +28,18 @@ type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const PRECIO = "$599 MXN";
+const TEST_DE = [
+  "Dificultad para lograr una erección suficiente",
+  "Pérdida de firmeza durante la relación",
+  "Menor deseo sexual o ansiedad de desempeño",
+  "Uso de medicamentos, presión alta o diabetes",
+];
+
+const CREDENCIALES_DR = [
+  "Urólogo especialista en salud sexual masculina",
+  "Orientación clínica privada y sin juicios",
+  "Evaluación inicial enfocada en disfunción eréctil",
+];
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -121,7 +133,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             cursor: "pointer",
           }}
         >
-          Entrar
+          Iniciar test
         </button>
       </header>
 
@@ -172,9 +184,8 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             <span style={{ fontStyle: "italic", color: T.goldDark }}>con un especialista a tu lado</span>
           </h1>
           <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 30px", maxWidth: "540px" }}>
-            El Dr. Vitalis es un urólogo guiado por inteligencia artificial que entiende tu caso, te orienta de forma
-            privada y te acompaña con un protocolo a tu medida: medicamentos con dosis, ejercicios terapéuticos y
-            seguimiento real de tu progreso.
+            Completa una evaluación privada de disfunción eréctil para ordenar tus síntomas, identificar factores de
+            riesgo y recibir una ruta de orientación personalizada antes de activar tu acompañamiento.
           </p>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
@@ -191,23 +202,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
-            </button>
-            <button
-              onClick={onSubscribe}
-              className="btn btn-ghost"
-              style={{
-                padding: "15px 30px",
-                background: "transparent",
-                color: T.charcoal,
-                border: `1px solid ${T.charcoal}`,
-                borderRadius: "999px",
-                fontSize: "15px",
-                fontWeight: 700,
-                cursor: "pointer",
-              }}
-            >
-              Conocer el programa
+              Iniciar test de disfunción eréctil
             </button>
           </div>
           <div
@@ -230,7 +225,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           </div>
         </div>
 
-        {/* Hero conversation preview */}
+        {/* Hero evaluation preview */}
         <div className="rise" style={{ animationDelay: "0.18s" }}>
           <div
             style={{
@@ -247,45 +242,74 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 <div style={{ fontSize: "14px", fontWeight: 700, color: T.charcoal }}>Dr. Vitalis</div>
                 <div style={{ fontSize: "11px", color: T.teal, display: "flex", alignItems: "center", gap: "5px" }}>
                   <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
-                  En línea
+                  Credenciales clínicas verificadas
                 </div>
               </div>
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              <div
+            <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.1em", textTransform: "uppercase", color: T.goldDark, marginBottom: "10px" }}>
+              Test de disfunción eréctil
+            </div>
+            <h2 style={{ fontFamily: display, fontSize: "25px", lineHeight: 1.16, fontWeight: 600, color: T.charcoal, margin: "0 0 12px" }}>
+              Evaluación inicial confidencial
+            </h2>
+            <p style={{ fontSize: "13.5px", lineHeight: 1.55, color: T.muted, margin: "0 0 16px" }}>
+              Revisa señales frecuentes y factores médicos relevantes antes de conversar con el especialista.
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: "9px", marginBottom: "18px" }}>
+              {TEST_DE.map((item) => (
+                <div
+                  key={item}
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "10px",
+                    padding: "10px 12px",
+                    background: T.cream,
+                    border: `1px solid ${T.border}`,
+                    borderRadius: "10px",
+                    color: T.ink,
+                    fontSize: "13px",
+                    lineHeight: 1.35,
+                  }}
+                >
+                  <span style={{ color: T.teal, fontWeight: 800, lineHeight: 1 }}>✓</span>
+                  {item}
+                </div>
+              ))}
+            </div>
+            <div style={{ borderTop: `1px solid ${T.border}`, paddingTop: "14px" }}>
+              {CREDENCIALES_DR.map((item) => (
+                <div key={item} style={{ display: "flex", gap: "8px", alignItems: "center", fontSize: "12.5px", color: T.muted, marginTop: "7px" }}>
+                  <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.gold }} />
+                  {item}
+                </div>
+              ))}
+              <button
+                onClick={onStart}
+                className="btn btn-ghost"
                 style={{
-                  alignSelf: "flex-end",
-                  maxWidth: "80%",
-                  background: T.charcoal,
-                  color: T.white,
-                  padding: "10px 14px",
-                  borderRadius: "14px 14px 4px 14px",
-                  fontSize: "13.5px",
-                  lineHeight: 1.5,
+                  width: "100%",
+                  marginTop: "18px",
+                  padding: "12px 16px",
+                  background: "transparent",
+                  color: T.charcoal,
+                  border: `1px solid ${T.charcoal}`,
+                  borderRadius: "999px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: "pointer",
                 }}
               >
-                Doctor, tengo dudas sobre un tratamiento y prefiero no ir a consulta presencial todavía.
-              </div>
-              <div
-                style={{
-                  alignSelf: "flex-start",
-                  maxWidth: "88%",
-                  background: T.cream,
-                  color: T.ink,
-                  padding: "10px 14px",
-                  borderRadius: "14px 14px 14px 4px",
-                  fontSize: "13.5px",
-                  lineHeight: 1.55,
-                  border: `1px solid ${T.border}`,
-                }}
-              >
-                Entiendo perfectamente, y es completamente confidencial. Cuénteme desde cuándo lo nota y revisemos juntos
-                las opciones, paso a paso.
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: "5px", paddingLeft: "4px", paddingTop: "2px" }}>
-                <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
-                <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
-                <span className="dot" style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.muted }} />
+                Comenzar evaluación
+              </button>
+              <div style={{ marginTop: "10px", textAlign: "center" }}>
+                <button
+                  onClick={onSubscribe}
+                  className="link-quiet"
+                  style={{ background: "transparent", border: 0, color: T.muted, fontSize: "12.5px", fontWeight: 700, cursor: "pointer" }}
+                >
+                  Ver programa Vitalis Pro
+                </button>
               </div>
             </div>
           </div>
