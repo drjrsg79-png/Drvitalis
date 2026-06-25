@@ -26,8 +26,10 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type ProSession = { isPro: true; email: string; plan: string; renewalDate: string | null };
 
 const PRECIO = "$599 MXN";
+const PRO_SESSION_KEY = "vitalis_pro_session";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -46,6 +48,27 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
     });
     const data = await res.json();
     return data.url || null;
+  } catch {
+    return null;
+  }
+}
+
+async function verifyProAccess(email: string): Promise<ProSession | null> {
+  try {
+    const normalized = email.trim().toLowerCase();
+    const res = await fetch("/.netlify/functions/verify-pro-access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: normalized }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.isPro) return null;
+    return {
+      isPro: true,
+      email: normalized,
+      plan: data.plan || "pro",
+      renewalDate: data.renewalDate || null,
+    };
   } catch {
     return null;
   }
@@ -81,7 +104,17 @@ const Header = () => (
   </div>
 );
 
-const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: () => void }) => (
+const Landing = ({
+  proSession,
+  onStart,
+  onSubscribe,
+  onProLogin,
+}: {
+  proSession: ProSession | null;
+  onStart: () => void;
+  onSubscribe: () => void;
+  onProLogin: () => void;
+}) => (
   <div style={{ minHeight: "100vh", background: T.cream, color: T.ink }}>
     {/* Atmospheric backdrop */}
     <div
@@ -108,7 +141,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
       >
         <Header />
         <button
-          onClick={onStart}
+          onClick={proSession ? onStart : onProLogin}
           className="btn btn-ghost"
           style={{
             padding: "10px 20px",
@@ -121,7 +154,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             cursor: "pointer",
           }}
         >
-          Entrar
+          {proSession ? "Vitalis Pro activo" : "Entrar a Vitalis Pro"}
         </button>
       </header>
 
@@ -195,6 +228,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             </button>
             <button
               onClick={onSubscribe}
+              disabled={!!proSession}
               className="btn btn-ghost"
               style={{
                 padding: "15px 30px",
@@ -207,8 +241,26 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                 cursor: "pointer",
               }}
             >
-              Conocer el programa
+              {proSession ? "Vitalis Pro activo" : "Conocer el programa"}
             </button>
+            {!proSession && (
+              <button
+                onClick={onProLogin}
+                className="btn btn-ghost"
+                style={{
+                  padding: "15px 30px",
+                  background: T.white,
+                  color: T.teal,
+                  border: `1px solid rgba(45,125,111,0.38)`,
+                  borderRadius: "999px",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Entrar a Vitalis Pro
+              </button>
+            )}
           </div>
           <div
             style={{
@@ -482,6 +534,20 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
               </li>
             ))}
           </ul>
+          {proSession ? (
+            <div
+              style={{
+                padding: "14px",
+                background: "rgba(45,125,111,0.10)",
+                color: T.teal,
+                borderRadius: "12px",
+                fontSize: "14px",
+                fontWeight: 800,
+              }}
+            >
+              Vitalis Pro activo
+            </div>
+          ) : (
           <button
             onClick={onSubscribe}
             className="btn btn-primary"
@@ -499,6 +565,27 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           >
             Activar Vitalis Pro
           </button>
+          )}
+          {!proSession && (
+            <button
+              onClick={onProLogin}
+              className="btn btn-ghost"
+              style={{
+                width: "100%",
+                padding: "14px",
+                marginTop: "10px",
+                background: "transparent",
+                color: T.charcoal,
+                border: `1px solid ${T.border}`,
+                borderRadius: "999px",
+                fontSize: "14px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Ya pagué, activar mi acceso
+            </button>
+          )}
         </div>
       </section>
 
@@ -547,6 +634,10 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         <p style={{ fontSize: "12.5px", color: T.muted, maxWidth: "560px", margin: "0 auto", lineHeight: 1.6 }}>
           Vitalis — Salud sexual masculina con IA. La información que ofrece el Dr. Vitalis es orientativa y no sustituye
           una consulta médica presencial ni la atención de urgencia.
+        </p>
+        <p style={{ fontSize: "12.5px", color: T.ink, maxWidth: "620px", margin: "16px auto 0", lineHeight: 1.7, fontWeight: 600 }}>
+          Dr. José Rogelio Sánchez García · Medicina Interna y Terapia Intensiva · Diplomado en Andrologia · Céd. Prof.
+          4273375 / 6525546 · Centro de Salud Sexual Masculina
         </p>
       </footer>
     </div>
@@ -610,6 +701,134 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
     </button>
   </div>
 );
+
+const ProAccessView = ({
+  loading,
+  error,
+  onVerify,
+  onBack,
+}: {
+  loading: boolean;
+  error: string;
+  onVerify: (email: string) => void;
+  onBack: () => void;
+}) => {
+  const [email, setEmail] = useState("");
+  const [touched, setTouched] = useState(false);
+  const correoOk = emailValido(email);
+
+  const submit = () => {
+    setTouched(true);
+    if (correoOk && !loading) onVerify(email);
+  };
+
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "32px 24px",
+        background: T.cream,
+      }}
+    >
+      <div className="rise" style={{ maxWidth: "460px", width: "100%" }}>
+        <div style={{ marginBottom: "20px" }}>
+          <Header />
+        </div>
+        <div
+          style={{
+            background: T.white,
+            border: `1px solid ${T.border}`,
+            borderRadius: "18px",
+            padding: "28px",
+            boxShadow: "0 28px 58px -42px rgba(27,27,29,0.45)",
+          }}
+        >
+          <div style={{ fontSize: "12px", fontWeight: 800, color: T.teal, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: "12px" }}>
+            Acceso Vitalis Pro
+          </div>
+          <h2 style={{ fontFamily: display, fontSize: "28px", fontWeight: 600, color: T.charcoal, margin: "0 0 10px" }}>
+            Entrar a Vitalis Pro
+          </h2>
+          <p style={{ fontSize: "14px", color: T.muted, lineHeight: 1.55, margin: "0 0 22px" }}>
+            Ingresa el correo con el que realizaste tu pago.
+          </p>
+          <input
+            className="field"
+            type="email"
+            placeholder="correo@ejemplo.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submit();
+            }}
+            style={{
+              width: "100%",
+              padding: "13px 14px",
+              border: `1px solid ${touched && !correoOk ? "#C0492F" : T.border}`,
+              borderRadius: "10px",
+              fontSize: "14px",
+              background: T.cream,
+              color: T.ink,
+            }}
+          />
+          {touched && !correoOk && (
+            <div style={{ fontSize: "12px", color: "#C0492F", marginTop: "7px" }}>Escribe un correo electrónico válido.</div>
+          )}
+          {error && (
+            <div
+              style={{
+                marginTop: "14px",
+                padding: "12px 13px",
+                background: "rgba(192,73,47,0.08)",
+                color: "#9B321F",
+                border: "1px solid rgba(192,73,47,0.22)",
+                borderRadius: "10px",
+                fontSize: "13px",
+                lineHeight: 1.5,
+              }}
+            >
+              {error}
+            </div>
+          )}
+          <button
+            onClick={submit}
+            disabled={loading}
+            className="btn btn-primary"
+            style={{
+              width: "100%",
+              padding: "15px",
+              marginTop: "18px",
+              background: loading ? T.border : T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              fontSize: "15px",
+              fontWeight: 700,
+              cursor: loading ? "wait" : "pointer",
+            }}
+          >
+            {loading ? "Verificando..." : "Verificar acceso"}
+          </button>
+          <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap", marginTop: "16px" }}>
+            <button
+              onClick={onBack}
+              className="link-quiet"
+              style={{ background: "transparent", border: "none", color: T.muted, fontSize: "13px", fontWeight: 700, padding: 0 }}
+            >
+              Intentar después
+            </button>
+            <a className="link-quiet" href="mailto:soporte@drvitalis1.com" style={{ color: T.teal, fontSize: "13px", fontWeight: 800, textDecoration: "none" }}>
+              Contactar soporte
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void }) => {
   const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
@@ -761,7 +980,17 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+const ChatView = ({
+  perfil,
+  proSession,
+  onSubscribe,
+  subscribing,
+}: {
+  perfil: Perfil;
+  proSession: ProSession | null;
+  onSubscribe: () => void;
+  subscribing: boolean;
+}) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
   ]);
@@ -807,6 +1036,8 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
+          flexWrap: "wrap",
+          gap: "10px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "11px" }}>
@@ -819,11 +1050,15 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
             </div>
           </div>
         </div>
+        <div style={{ maxWidth: "420px", textAlign: "right", fontSize: "11px", lineHeight: 1.45, color: T.muted, fontWeight: 600 }}>
+          Dr. José Rogelio Sánchez García · Medicina Interna y Terapia Intensiva · Diplomado en Andrologia · Céd. Prof.
+          4273375 / 6525546 · Centro de Salud Sexual Masculina
+        </div>
       </div>
 
       <div
         style={{
-          background: "rgba(184,146,42,0.08)",
+          background: proSession ? "rgba(45,125,111,0.10)" : "rgba(184,146,42,0.08)",
           borderBottom: `1px solid ${T.border}`,
           padding: "11px 18px",
           display: "flex",
@@ -833,25 +1068,31 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
           flexWrap: "wrap",
         }}
       >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
-        <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
-          style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
-            borderRadius: "999px",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
-        </button>
+        <span style={{ fontSize: "12.5px", color: T.ink }}>
+          {proSession
+            ? "Vitalis Pro activo: protocolo completo, consultas ilimitadas y contenido exclusivo desbloqueado."
+            : "Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas."}
+        </span>
+        {!proSession && (
+          <button
+            onClick={onSubscribe}
+            disabled={subscribing}
+            className="btn btn-primary"
+            style={{
+              padding: "9px 18px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: subscribing ? "wait" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -898,6 +1139,24 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
                   {s}
                 </button>
               ))}
+            </div>
+          )}
+
+          {proSession && (
+            <div
+              className="fade"
+              style={{
+                background: T.white,
+                border: `1px solid rgba(45,125,111,0.25)`,
+                borderRadius: "14px",
+                padding: "16px",
+                color: T.ink,
+                fontSize: "14px",
+                lineHeight: 1.55,
+              }}
+            >
+              <strong style={{ color: T.teal }}>Contenido exclusivo activo.</strong> Puedes pedir tu protocolo completo,
+              ajustes de seguimiento, ejercicios terapéuticos y todas las consultas que necesites.
             </div>
           )}
 
@@ -960,12 +1219,28 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 };
 
 export default function App() {
-  const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
+  const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success" | "pro-access">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
+  const [proSession, setProSession] = useState<ProSession | null>(null);
+  const [verifyingPro, setVerifyingPro] = useState(false);
+  const [proError, setProError] = useState("");
 
   useEffect(() => {
+    const stored = window.localStorage.getItem(PRO_SESSION_KEY);
+    if (stored) {
+      try {
+        const parsed = JSON.parse(stored) as ProSession;
+        if (parsed?.isPro && parsed.email) {
+          setProSession(parsed);
+          setPerfil((p) => ({ ...p, email: parsed.email }));
+        }
+      } catch {
+        window.localStorage.removeItem(PRO_SESSION_KEY);
+      }
+    }
+
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
       setScreen("success");
       window.history.replaceState({}, "", "/");
@@ -992,24 +1267,55 @@ export default function App() {
     }
   };
 
+  const verificarAccesoPro = async (email: string) => {
+    setVerifyingPro(true);
+    setProError("");
+    const access = await verifyProAccess(email);
+    setVerifyingPro(false);
+
+    if (!access) {
+      setProError("No encontramos una suscripción activa con este correo. Verifica que sea el mismo correo usado al pagar o contáctanos para activar tu acceso.");
+      return;
+    }
+
+    setProSession(access);
+    setPerfil((p) => ({ ...p, email: access.email, nombre: p.nombre || "Paciente Pro" }));
+    window.localStorage.setItem(PRO_SESSION_KEY, JSON.stringify(access));
+    setScreen("chat");
+  };
+
   return (
     <>
       {screen === "landing" && (
         <Landing
+          proSession={proSession}
           onStart={() => {
             setIntent("chat");
-            setScreen("onboarding");
+            setScreen(proSession ? "chat" : "onboarding");
           }}
           onSubscribe={() => {
             setIntent("subscribe");
             setScreen("onboarding");
           }}
+          onProLogin={() => {
+            setProError("");
+            setScreen("pro-access");
+          }}
+        />
+      )}
+      {screen === "pro-access" && (
+        <ProAccessView
+          loading={verifyingPro}
+          error={proError}
+          onVerify={verificarAccesoPro}
+          onBack={() => setScreen("landing")}
         />
       )}
       {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting} onComplete={completarOnboarding} />}
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
+          proSession={proSession}
           subscribing={redirecting}
           onSubscribe={() => {
             setIntent("subscribe");
@@ -1017,7 +1323,7 @@ export default function App() {
           }}
         />
       )}
-      {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
+      {screen === "success" && <SuccessBanner onContinue={() => setScreen(proSession || perfil.nombre ? "chat" : "pro-access")} />}
     </>
   );
 }
