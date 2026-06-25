@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardarHistorial } from '@/lib/db';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
 export async function POST(request: NextRequest) {
   try {
-    const { systemPrompt, messages } = (await request.json()) as {
+    const { systemPrompt, messages, email } = (await request.json()) as {
       systemPrompt?: string;
       messages?: ChatMessage[];
+      email?: string;
     };
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
@@ -63,6 +65,14 @@ export async function POST(request: NextRequest) {
     const reply: string =
       data?.content?.[0]?.text ||
       'Disculpe, no pude formular una respuesta. ¿Podría reformular su consulta?';
+
+    if (email) {
+      try {
+        await guardarHistorial(email, [...conversation, { role: 'assistant', content: reply }]);
+      } catch {
+        // La respuesta clínica no debe perderse para el usuario si falla el guardado.
+      }
+    }
 
     return NextResponse.json({ reply });
   } catch {
