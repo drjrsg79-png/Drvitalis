@@ -45,13 +45,15 @@ export async function asegurarSuscripcion(userId: string): Promise<void> {
 export async function activarSuscripcion(
   userId: string,
   stripeCustomerId: string | null,
-  stripeSubscriptionId: string | null
+  stripeSubscriptionId: string | null,
+  currentPeriodEnd?: Date | string | null
 ): Promise<void> {
   await db.sql`
     update subscriptions set
       status                 = 'active',
       stripe_customer_id     = coalesce(${stripeCustomerId}, stripe_customer_id),
-      stripe_subscription_id = coalesce(${stripeSubscriptionId}, stripe_subscription_id)
+      stripe_subscription_id = coalesce(${stripeSubscriptionId}, stripe_subscription_id),
+      current_period_end     = coalesce(${currentPeriodEnd ? new Date(currentPeriodEnd).toISOString() : null}, current_period_end)
     where user_id = ${userId}
   `;
 }
@@ -59,10 +61,13 @@ export async function activarSuscripcion(
 // Actualiza el estado de la suscripción por su id de Stripe (cancelaciones, etc.).
 export async function actualizarEstadoPorSubscriptionId(
   stripeSubscriptionId: string,
-  status: string
+  status: string,
+  currentPeriodEnd?: Date | string | null
 ): Promise<void> {
   await db.sql`
-    update subscriptions set status = ${status}
+    update subscriptions set
+      status = ${status},
+      current_period_end = coalesce(${currentPeriodEnd ? new Date(currentPeriodEnd).toISOString() : null}, current_period_end)
     where stripe_subscription_id = ${stripeSubscriptionId}
   `;
 }

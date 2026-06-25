@@ -26,6 +26,8 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type AuthMode = "login" | "signup";
+type AccessReason = "login_required" | "payment_required" | "subscription_inactive" | "service_unavailable";
 
 const PRECIO = "$599 MXN";
 
@@ -49,6 +51,35 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+async function authRequest(mode: AuthMode, email: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(`/.netlify/functions/${mode === "login" ? "login" : "signup"}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ email, password }),
+    });
+    const data = await res.json();
+    return res.ok ? { ok: true } : { ok: false, error: data.error || "No se pudo completar la operación." };
+  } catch {
+    return { ok: false, error: "Error de conexión. Inténtalo de nuevo." };
+  }
+}
+
+async function checkAccess(): Promise<{ access: boolean; reason?: AccessReason }> {
+  try {
+    const res = await fetch("/.netlify/functions/check-access", { credentials: "include" });
+    const data = await res.json();
+    return { access: Boolean(data.access), reason: data.reason };
+  } catch {
+    return { access: false, reason: "service_unavailable" };
+  }
+}
+
+async function logoutSession() {
+  await fetch("/.netlify/functions/logout", { method: "POST", credentials: "include" });
 }
 
 const Monogram = ({ size = 30 }: { size?: number }) => (
@@ -611,6 +642,115 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
   </div>
 );
 
+const AuthView = ({
+  mode,
+  message,
+  loading,
+  onSubmit,
+  onMode,
+}: {
+  mode: AuthMode;
+  message?: string;
+  loading: boolean;
+  onSubmit: (email: string, password: string) => void;
+  onMode: (mode: AuthMode) => void;
+}) => {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [touched, setTouched] = useState(false);
+  const [error, setError] = useState("");
+  const emailOk = emailValido(email);
+  const passwordOk = password.length >= 8;
+  const inputBase = {
+    width: "100%",
+    padding: "13px 14px",
+    border: `1px solid ${T.border}`,
+    borderRadius: "10px",
+    fontSize: "14px",
+    boxSizing: "border-box" as const,
+    background: T.white,
+    color: T.ink,
+  };
+
+  const submit = () => {
+    setTouched(true);
+    setError("");
+    if (!emailOk || !passwordOk || loading) {
+      setError("Escribe un correo válido y una contraseña de al menos 8 caracteres.");
+      return;
+    }
+    onSubmit(email, password);
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 24px", background: T.cream }}>
+      <div className="rise" style={{ maxWidth: "430px", width: "100%" }}>
+        <div style={{ marginBottom: "24px" }}><Header /></div>
+        <h2 style={{ fontFamily: display, fontSize: "29px", fontWeight: 600, color: T.charcoal, margin: "0 0 8px" }}>
+          {mode === "login" ? "Entrar a Vitalis" : "Crear cuenta"}
+        </h2>
+        <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 22px", lineHeight: 1.55 }}>
+          {message || "Usa tu correo y contraseña. Si ya pagaste con este correo, entrarás directo a consulta."}
+        </p>
+        <input
+          className="field"
+          type="email"
+          placeholder="Correo electrónico"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{ ...inputBase, marginBottom: "12px", borderColor: touched && !emailOk ? "#C0492F" : T.border }}
+        />
+        <input
+          className="field"
+          type="password"
+          placeholder="Contraseña"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") submit();
+          }}
+          style={{ ...inputBase, marginBottom: "14px", borderColor: touched && !passwordOk ? "#C0492F" : T.border }}
+        />
+        {error && <div style={{ fontSize: "12px", color: "#C0492F", marginBottom: "14px" }}>{error}</div>}
+        <button
+          onClick={submit}
+          disabled={loading}
+          className="btn btn-primary"
+          style={{
+            width: "100%",
+            padding: "15px",
+            background: loading ? T.border : T.gold,
+            color: T.white,
+            border: "none",
+            borderRadius: "999px",
+            cursor: loading ? "wait" : "pointer",
+            fontSize: "15px",
+            fontWeight: 700,
+          }}
+        >
+          {loading ? "Verificando..." : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
+        </button>
+        <button
+          onClick={() => onMode(mode === "login" ? "signup" : "login")}
+          style={{
+            width: "100%",
+            marginTop: "12px",
+            padding: "12px",
+            background: "transparent",
+            border: "none",
+            color: T.teal,
+            fontSize: "13px",
+            fontWeight: 700,
+            cursor: "pointer",
+          }}
+        >
+          {mode === "login" ? "No tengo cuenta, crear una" : "Ya tengo cuenta, iniciar sesión"}
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void }) => {
   const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [touched, setTouched] = useState(false);
@@ -761,7 +901,7 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+const ChatView = ({ perfil, onLogout }: { perfil: Perfil; onLogout: () => void }) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
   ]);
@@ -819,38 +959,21 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
             </div>
           </div>
         </div>
-      </div>
-
-      <div
-        style={{
-          background: "rgba(184,146,42,0.08)",
-          borderBottom: `1px solid ${T.border}`,
-          padding: "11px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
         <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
+          onClick={onLogout}
+          className="btn btn-ghost"
           style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
+            padding: "9px 16px",
+            background: "transparent",
+            color: T.charcoal,
+            border: `1px solid ${T.border}`,
             borderRadius: "999px",
             fontSize: "12px",
             fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
+            cursor: "pointer",
           }}
         >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
+          Salir
         </button>
       </div>
 
@@ -960,9 +1083,11 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 };
 
 export default function App() {
-  const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
+  const [screen, setScreen] = useState<"landing" | "auth" | "onboarding" | "chat" | "success">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [intent, setIntent] = useState<Intent>("chat");
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [authMessage, setAuthMessage] = useState("");
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
@@ -970,6 +1095,12 @@ export default function App() {
       setScreen("success");
       window.history.replaceState({}, "", "/");
     }
+  }, []);
+
+  useEffect(() => {
+    checkAccess().then((result) => {
+      if (result.access) setScreen("chat");
+    });
   }, []);
 
   const irACheckout = async (p: Perfil) => {
@@ -981,6 +1112,34 @@ export default function App() {
       setRedirecting(false);
       alert("No se pudo iniciar el pago. Verifica tus datos e intenta de nuevo.");
     }
+  };
+
+  const handleAuth = async (email: string, password: string) => {
+    setRedirecting(true);
+    setAuthMessage("");
+    const auth = await authRequest(authMode, email, password);
+    if (!auth.ok) {
+      setRedirecting(false);
+      setAuthMessage(auth.error || "No se pudo autenticar.");
+      return;
+    }
+
+    const access = await checkAccess();
+    const nextPerfil = { ...perfil, email };
+    setPerfil(nextPerfil);
+
+    if (access.access) {
+      setRedirecting(false);
+      setScreen("chat");
+      return;
+    }
+
+    if (access.reason === "subscription_inactive") {
+      setAuthMessage("Tu suscripción venció. Renueva aquí para volver a entrar a consulta.");
+    } else {
+      setAuthMessage("Tu cuenta está lista. Activa Vitalis Pro para entrar a consulta.");
+    }
+    await irACheckout(nextPerfil);
   };
 
   const completarOnboarding = (p: Perfil) => {
@@ -998,26 +1157,45 @@ export default function App() {
         <Landing
           onStart={() => {
             setIntent("chat");
-            setScreen("onboarding");
+            setAuthMode("login");
+            setAuthMessage("");
+            setScreen("auth");
           }}
           onSubscribe={() => {
             setIntent("subscribe");
-            setScreen("onboarding");
+            setAuthMode("signup");
+            setAuthMessage("");
+            setScreen("auth");
           }}
+        />
+      )}
+      {screen === "auth" && (
+        <AuthView
+          mode={authMode}
+          message={authMessage}
+          loading={redirecting}
+          onMode={(mode) => {
+            setAuthMode(mode);
+            setAuthMessage("");
+          }}
+          onSubmit={handleAuth}
         />
       )}
       {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting} onComplete={completarOnboarding} />}
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
-          subscribing={redirecting}
-          onSubscribe={() => {
-            setIntent("subscribe");
-            irACheckout(perfil);
+          onLogout={async () => {
+            await logoutSession();
+            setPerfil({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
+            setScreen("landing");
           }}
         />
       )}
-      {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
+      {screen === "success" && <SuccessBanner onContinue={async () => {
+        const access = await checkAccess();
+        setScreen(access.access ? "chat" : "auth");
+      }} />}
     </>
   );
 }
