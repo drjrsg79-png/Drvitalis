@@ -35,8 +35,29 @@ export async function POST(req: NextRequest) {
         const subscriptionId =
           typeof session.subscription === "string" ? session.subscription : null;
         if (userId) {
-          await activarSuscripcion(userId, customerId, subscriptionId);
+          let currentPeriodEnd: Date | null = null;
+          if (subscriptionId) {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            currentPeriodEnd = subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000)
+              : null;
+          }
+          await activarSuscripcion(userId, customerId, subscriptionId, currentPeriodEnd);
         }
+        break;
+      }
+      case "customer.subscription.updated": {
+        const sub = event.data.object as Stripe.Subscription;
+        const status = sub.status === "active" || sub.status === "trialing"
+          ? "active"
+          : sub.status === "past_due" || sub.status === "unpaid"
+            ? "past_due"
+            : "canceled";
+        await actualizarEstadoPorSubscriptionId(
+          sub.id,
+          status,
+          sub.current_period_end ? new Date(sub.current_period_end * 1000) : null
+        );
         break;
       }
       case "customer.subscription.deleted": {
@@ -68,4 +89,3 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ received: true });
 }
-
