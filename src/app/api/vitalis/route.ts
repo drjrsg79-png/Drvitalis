@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardarHistorialPorEmail } from '@/lib/db';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
 export async function POST(request: NextRequest) {
   try {
-    const { systemPrompt, messages } = (await request.json()) as {
+    const { email, systemPrompt, messages } = (await request.json()) as {
+      email?: string;
       systemPrompt?: string;
       messages?: ChatMessage[];
     };
@@ -63,6 +65,14 @@ export async function POST(request: NextRequest) {
     const reply: string =
       data?.content?.[0]?.text ||
       'Disculpe, no pude formular una respuesta. ¿Podría reformular su consulta?';
+
+    if (typeof email === 'string' && email.trim()) {
+      try {
+        await guardarHistorialPorEmail(email, [...conversation, { role: 'assistant', content: reply }]);
+      } catch {
+        // La consulta no debe fallar si el historial no se puede guardar.
+      }
+    }
 
     return NextResponse.json({ reply });
   } catch {

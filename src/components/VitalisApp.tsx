@@ -26,8 +26,12 @@ type Perfil = {
 
 type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
+type SubscriptionCheck = { active: boolean; perfil?: Perfil | null; messages?: ChatMessage[] };
 
 const PRECIO = "$599 MXN";
+const PERFIL_KEY = "vitalis_perfil";
+const DOCTOR_NOMBRE = "Dr. José Rogelio Sánchez García";
+const DOCTOR_CREDENCIALES = "Medicina crítica y terapia intensiva · Cédulas: 4273375 y 6525546";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -48,6 +52,24 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
     return data.url || null;
   } catch {
     return null;
+  }
+}
+
+async function verificarSuscripcion(email: string): Promise<SubscriptionCheck> {
+  try {
+    const res = await fetch("/api/subscription", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+    const data = await res.json();
+    return {
+      active: Boolean(data.active),
+      perfil: data.perfil || null,
+      messages: Array.isArray(data.messages) ? data.messages : [],
+    };
+  } catch {
+    return { active: false, messages: [] };
   }
 }
 
@@ -78,6 +100,14 @@ const Header = () => (
     <span style={{ fontFamily: display, fontSize: "21px", fontWeight: 600, letterSpacing: "0.14em", color: T.charcoal }}>
       VITALIS
     </span>
+  </div>
+);
+
+const DoctorCredentials = ({ compact = false }: { compact?: boolean }) => (
+  <div style={{ fontSize: compact ? "11px" : "12.5px", color: T.muted, lineHeight: 1.45 }}>
+    <strong style={{ color: T.charcoal }}>{DOCTOR_NOMBRE}</strong>
+    <br />
+    {DOCTOR_CREDENCIALES}
   </div>
 );
 
@@ -176,6 +206,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             privada y te acompaña con un protocolo a tu medida: medicamentos con dosis, ejercicios terapéuticos y
             seguimiento real de tu progreso.
           </p>
+          <div style={{ margin: "-14px 0 28px" }}>
+            <DoctorCredentials />
+          </div>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               onClick={onStart}
@@ -250,6 +283,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                   En línea
                 </div>
               </div>
+            </div>
+            <div style={{ marginBottom: "14px" }}>
+              <DoctorCredentials compact />
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div
@@ -548,6 +584,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           Vitalis — Salud sexual masculina con IA. La información que ofrece el Dr. Vitalis es orientativa y no sustituye
           una consulta médica presencial ni la atención de urgencia.
         </p>
+        <div style={{ marginTop: "14px" }}>
+          <DoctorCredentials compact />
+        </div>
       </footer>
     </div>
   </div>
@@ -611,12 +650,11 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
   </div>
 );
 
-const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void }) => {
+const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: boolean; onComplete: (p: Perfil) => void | Promise<void> }) => {
   const [form, setForm] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [touched, setTouched] = useState(false);
-  const nombreOk = form.nombre.trim() !== "";
   const correoOk = emailValido(form.email);
-  const valido = nombreOk && correoOk;
+  const valido = correoOk && (intent === "chat" || form.nombre.trim() !== "");
 
   const inputBase = {
     width: "100%",
@@ -678,12 +716,12 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
         <div style={{ marginBottom: "14px" }}>
           <input
             className="field"
-            placeholder="Nombre"
+            placeholder={intent === "chat" ? "Nombre (opcional si ya te registraste)" : "Nombre"}
             value={form.nombre}
             onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-            style={{ ...inputBase, borderColor: touched && !nombreOk ? "#C0492F" : T.border }}
+            style={{ ...inputBase, borderColor: touched && intent === "subscribe" && !form.nombre.trim() ? "#C0492F" : T.border }}
           />
-          {touched && !nombreOk && (
+          {touched && intent === "subscribe" && !form.nombre.trim() && (
             <div style={{ fontSize: "12px", color: "#C0492F", marginTop: "6px" }}>Indica tu nombre para continuar.</div>
           )}
         </div>
@@ -761,10 +799,21 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
-  const [msgs, setMsgs] = useState<ChatMessage[]>([
-    { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
-  ]);
+const ChatView = ({
+  perfil,
+  onSubscribe,
+  subscribing,
+  proActivo,
+  initialMessages,
+}: {
+  perfil: Perfil;
+  onSubscribe: () => void;
+  subscribing: boolean;
+  proActivo: boolean;
+  initialMessages: ChatMessage[];
+}) => {
+  const saludo = { role: "assistant" as const, content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` };
+  const [msgs, setMsgs] = useState<ChatMessage[]>(initialMessages.length > 0 ? initialMessages : [saludo]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -783,7 +832,8 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: `Eres el Dr. Vitalis, urólogo especialista en salud sexual masculina. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Responde siempre en español, con tono médico profesional, claro y empático. No uses emojis.`,
+          systemPrompt: `Eres el Dr. Vitalis, asistente clínico supervisado por ${DOCTOR_NOMBRE}, especialista en medicina crítica y terapia intensiva. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Responde siempre en español, con tono médico profesional, claro y empático. No uses emojis.`,
+          email: perfil.email,
           messages: newMsgs,
         }),
       });
@@ -815,12 +865,14 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
             <div style={{ fontSize: "15px", fontWeight: 700, color: T.charcoal }}>Dr. Vitalis</div>
             <div style={{ fontSize: "11px", color: T.teal, display: "flex", alignItems: "center", gap: "5px" }}>
               <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
-              En línea · Urología
+              En línea · Vitalis Pro
             </div>
+            <DoctorCredentials compact />
           </div>
         </div>
       </div>
 
+      {!proActivo && (
       <div
         style={{
           background: "rgba(184,146,42,0.08)",
@@ -853,6 +905,7 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
           {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
         </button>
       </div>
+      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ maxWidth: "760px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -964,9 +1017,26 @@ export default function App() {
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
+  const [proActivo, setProActivo] = useState(false);
+  const [chatInicial, setChatInicial] = useState<ChatMessage[]>([]);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
+    if (typeof window === "undefined") return;
+
+    const guardado = window.localStorage.getItem(PERFIL_KEY);
+    if (guardado) {
+      try {
+        const parsed = JSON.parse(guardado) as Perfil;
+        if (parsed?.email) {
+          setPerfil(parsed);
+        }
+      } catch {
+        window.localStorage.removeItem(PERFIL_KEY);
+      }
+    }
+
+    if (new URLSearchParams(window.location.search).get("success") === "true") {
+      setProActivo(true);
       setScreen("success");
       window.history.replaceState({}, "", "/");
     }
@@ -974,6 +1044,9 @@ export default function App() {
 
   const irACheckout = async (p: Perfil) => {
     setRedirecting(true);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PERFIL_KEY, JSON.stringify(p));
+    }
     const url = await iniciarCheckout(p);
     if (url) {
       window.location.href = url;
@@ -983,11 +1056,26 @@ export default function App() {
     }
   };
 
-  const completarOnboarding = (p: Perfil) => {
+  const completarOnboarding = async (p: Perfil) => {
     setPerfil(p);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(PERFIL_KEY, JSON.stringify(p));
+    }
     if (intent === "subscribe") {
       irACheckout(p);
     } else {
+      setRedirecting(true);
+      const subscription = await verificarSuscripcion(p.email);
+      const perfilCompleto = subscription.perfil
+        ? { ...p, ...subscription.perfil, email: subscription.perfil.email || p.email }
+        : p;
+      setPerfil(perfilCompleto);
+      setProActivo(subscription.active);
+      setChatInicial(subscription.messages || []);
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(PERFIL_KEY, JSON.stringify(perfilCompleto));
+      }
+      setRedirecting(false);
       setScreen("chat");
     }
   };
@@ -1011,6 +1099,8 @@ export default function App() {
         <ChatView
           perfil={perfil}
           subscribing={redirecting}
+          proActivo={proActivo}
+          initialMessages={chatInicial}
           onSubscribe={() => {
             setIntent("subscribe");
             irACheckout(perfil);

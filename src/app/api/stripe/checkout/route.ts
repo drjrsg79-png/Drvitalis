@@ -1,12 +1,13 @@
 import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
-import { upsertUsuario, asegurarSuscripcion } from "@/lib/db";
+import { upsertUsuario, asegurarSuscripcion, normalizarEmail } from "@/lib/db";
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
 export async function POST(req: NextRequest) {
   try {
     const { email, nombre, edad, pais, condicion } = await req.json();
+    const normalizedEmail = typeof email === "string" ? normalizarEmail(email) : "";
     const rawUrl = process.env.NEXT_PUBLIC_URL || "http://localhost:8889";
     // Stripe exige URLs absolutas con esquema. NEXT_PUBLIC_URL puede venir como
     // "drvitalis1.com" sin protocolo, así que se normaliza.
@@ -16,9 +17,9 @@ export async function POST(req: NextRequest) {
     // Si la base de datos no estuviera disponible, el pago no se bloquea:
     // el webhook vuelve a vincular la suscripción cuando Stripe confirma.
     let userId: string | null = null;
-    if (email) {
+    if (normalizedEmail) {
       try {
-        userId = await upsertUsuario({ email, nombre, edad, pais, condicion });
+        userId = await upsertUsuario({ email: normalizedEmail, nombre, edad, pais, condicion });
         await asegurarSuscripcion(userId);
       } catch {
         userId = null;
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
-      customer_email: email || undefined,
+      customer_email: normalizedEmail || undefined,
       client_reference_id: userId || undefined,
       line_items: [
         {
@@ -46,7 +47,7 @@ export async function POST(req: NextRequest) {
       mode: "subscription",
       success_url: `${baseUrl}/?success=true`,
       cancel_url: `${baseUrl}/`,
-      metadata: { nombre: nombre || "", user_id: userId || "" },
+      metadata: { nombre: nombre || "", user_id: userId || "", email: normalizedEmail },
     });
 
     return NextResponse.json({ url: session.url });

@@ -1,6 +1,7 @@
 import Stripe from "stripe";
 import { NextRequest, NextResponse } from "next/server";
 import {
+  activarSuscripcionPorEmail,
   activarSuscripcion,
   actualizarEstadoPorSubscriptionId,
   marcarPorCustomerId,
@@ -36,6 +37,20 @@ export async function POST(req: NextRequest) {
           typeof session.subscription === "string" ? session.subscription : null;
         if (userId) {
           await activarSuscripcion(userId, customerId, subscriptionId);
+        } else {
+          const email =
+            session.customer_details?.email ||
+            session.customer_email ||
+            session.metadata?.email ||
+            "";
+          if (email) {
+            await activarSuscripcionPorEmail(
+              email,
+              session.metadata?.nombre || null,
+              customerId,
+              subscriptionId
+            );
+          }
         }
         break;
       }
@@ -68,4 +83,3 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ received: true });
 }
-
