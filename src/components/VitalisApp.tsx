@@ -28,6 +28,12 @@ type Intent = "chat" | "subscribe";
 type ChatMessage = { role: "user" | "assistant"; content: string };
 
 const PRECIO = "$599 MXN";
+const MEDICAL_CREDENTIALS = {
+  name: "Dr. José Rogelio Sánchez García",
+  specialty: "Especialista en Medicina Interna y Terapia Intensiva",
+  center: "Centro de Salud Sexual Masculina",
+  license: "Céd. Prof. 4273375 / 6525546",
+};
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -81,6 +87,22 @@ const Header = () => (
   </div>
 );
 
+const MedicalSupervision = ({ compact = false }: { compact?: boolean }) => (
+  <div
+    style={{
+      display: "inline-flex",
+      flexDirection: "column",
+      gap: compact ? "1px" : "2px",
+      color: T.muted,
+      fontSize: compact ? "11.5px" : "12.5px",
+      lineHeight: 1.35,
+    }}
+  >
+    <span style={{ color: T.ink, fontWeight: 700 }}>Bajo supervisión médica del {MEDICAL_CREDENTIALS.name}</span>
+    {!compact && <span>{MEDICAL_CREDENTIALS.specialty}</span>}
+  </div>
+);
+
 const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: () => void }) => (
   <div style={{ minHeight: "100vh", background: T.cream, color: T.ink }}>
     {/* Atmospheric backdrop */}
@@ -106,7 +128,10 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
           margin: "0 auto",
         }}
       >
-        <Header />
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          <Header />
+          <MedicalSupervision compact />
+        </div>
         <button
           onClick={onStart}
           className="btn btn-ghost"
@@ -250,6 +275,21 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
                   En línea
                 </div>
               </div>
+            </div>
+            <div
+              style={{
+                border: `1px solid ${T.border}`,
+                borderRadius: "12px",
+                padding: "10px 12px",
+                background: "rgba(247,244,238,0.72)",
+                color: T.muted,
+                fontSize: "12px",
+                lineHeight: 1.45,
+                marginBottom: "14px",
+              }}
+            >
+              Orientación clínica digital basada en el enfoque médico del{" "}
+              <span style={{ color: T.ink, fontWeight: 700 }}>{MEDICAL_CREDENTIALS.name}</span>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               <div
@@ -544,6 +584,20 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         <div style={{ display: "flex", justifyContent: "center", marginBottom: "12px" }}>
           <Header />
         </div>
+        <div
+          style={{
+            fontSize: "13px",
+            color: T.ink,
+            lineHeight: 1.55,
+            margin: "0 auto 14px",
+            maxWidth: "560px",
+          }}
+        >
+          <div style={{ fontWeight: 800 }}>{MEDICAL_CREDENTIALS.name}</div>
+          <div>{MEDICAL_CREDENTIALS.specialty.replace("Especialista en ", "")}</div>
+          <div>{MEDICAL_CREDENTIALS.center}</div>
+          <div style={{ color: T.muted }}>{MEDICAL_CREDENTIALS.license}</div>
+        </div>
         <p style={{ fontSize: "12.5px", color: T.muted, maxWidth: "560px", margin: "0 auto", lineHeight: 1.6 }}>
           Vitalis — Salud sexual masculina con IA. La información que ofrece el Dr. Vitalis es orientativa y no sustituye
           una consulta médica presencial ni la atención de urgencia.
@@ -817,6 +871,9 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
               <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
               En línea · Urología
             </div>
+            <div style={{ fontSize: "11px", color: T.muted, marginTop: "2px", lineHeight: 1.35 }}>
+              Respaldo médico: {MEDICAL_CREDENTIALS.name}
+            </div>
           </div>
         </div>
       </div>
@@ -856,6 +913,24 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ maxWidth: "760px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
+          <div
+            style={{
+              alignSelf: "center",
+              width: "100%",
+              background: T.white,
+              border: `1px solid ${T.border}`,
+              borderRadius: "12px",
+              padding: "12px 16px",
+              color: T.muted,
+              fontSize: "12.5px",
+              lineHeight: 1.5,
+              boxShadow: "0 8px 20px -18px rgba(27,27,29,0.45)",
+            }}
+          >
+            Orientación clínica digital basada en el enfoque médico del{" "}
+            <span style={{ color: T.ink, fontWeight: 800 }}>{MEDICAL_CREDENTIALS.name}</span>
+            <span> · {MEDICAL_CREDENTIALS.specialty}</span>
+          </div>
           {msgs.map((m, i) => (
             <div key={i} className="fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
               <div
