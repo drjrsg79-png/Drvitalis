@@ -130,6 +130,14 @@ h3 {
   box-shadow: 0 14px 30px -10px rgba(184, 146, 42, 0.85);
 }
 
+.btn-strong {
+  box-shadow: 0 12px 26px -14px rgba(27, 27, 29, 0.85);
+}
+.btn-strong:hover:not(:disabled) {
+  background: #2e2e30 !important;
+  box-shadow: 0 18px 34px -16px rgba(27, 27, 29, 0.9);
+}
+
 .btn-ghost:hover:not(:disabled) {
   border-color: var(--charcoal) !important;
   background: rgba(27, 27, 29, 0.03) !important;
@@ -193,6 +201,9 @@ h3 {
   .hero-grid {
     grid-template-columns: 1fr !important;
     gap: 36px !important;
+  }
+  .phone-grid {
+    grid-template-columns: 1fr !important;
   }
 }
 
