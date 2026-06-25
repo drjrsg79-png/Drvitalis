@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: "subscription",
-      success_url: `${baseUrl}/?success=true`,
+      success_url: `${baseUrl}/?success=true&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/`,
       metadata: { nombre: nombre || "", user_id: userId || "" },
     });

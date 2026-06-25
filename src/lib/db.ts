@@ -13,6 +13,22 @@ export type UsuarioBasico = {
   condicion?: string;
 };
 
+export type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+export type EstadoUsuario = {
+  id: string;
+  nombre: string | null;
+  email: string;
+  edad: number | null;
+  pais: string | null;
+  condicion: string | null;
+  subscription_status: string | null;
+  chat_messages: ChatMessage[] | null;
+};
+
 // Crea o actualiza el usuario por correo y devuelve su id.
 export async function upsertUsuario(perfil: UsuarioBasico): Promise<string> {
   const edad = perfil.edad && /^\d+$/.test(perfil.edad.trim())
@@ -30,6 +46,84 @@ export async function upsertUsuario(perfil: UsuarioBasico): Promise<string> {
     returning id
   `;
   return filas[0].id;
+}
+
+export async function obtenerEstadoPorEmail(email: string): Promise<EstadoUsuario | null> {
+  const filas = await db.sql<EstadoUsuario>`
+    select
+      users.id,
+      users.nombre,
+      users.email,
+      users.edad,
+      users.pais,
+      users.condicion,
+      subscriptions.status as subscription_status,
+      chat_history.messages as chat_messages
+    from users
+    left join subscriptions on subscriptions.user_id = users.id
+    left join lateral (
+      select messages
+      from chat_history
+      where chat_history.user_id = users.id
+      order by updated_at desc
+      limit 1
+    ) chat_history on true
+    where lower(users.email) = lower(${email})
+    limit 1
+  `;
+
+  return filas[0] || null;
+}
+
+export async function obtenerEstadoPorUserId(userId: string): Promise<EstadoUsuario | null> {
+  const filas = await db.sql<EstadoUsuario>`
+    select
+      users.id,
+      users.nombre,
+      users.email,
+      users.edad,
+      users.pais,
+      users.condicion,
+      subscriptions.status as subscription_status,
+      chat_history.messages as chat_messages
+    from users
+    left join subscriptions on subscriptions.user_id = users.id
+    left join lateral (
+      select messages
+      from chat_history
+      where chat_history.user_id = users.id
+      order by updated_at desc
+      limit 1
+    ) chat_history on true
+    where users.id = ${userId}
+    limit 1
+  `;
+
+  return filas[0] || null;
+}
+
+export async function guardarHistorial(email: string, messages: ChatMessage[]): Promise<void> {
+  const estado = await obtenerEstadoPorEmail(email);
+  if (!estado) return;
+
+  await db.sql`
+    with latest as (
+      select id
+      from chat_history
+      where user_id = ${estado.id}
+      order by updated_at desc
+      limit 1
+    ),
+    updated as (
+      update chat_history
+      set messages = ${JSON.stringify(messages)}::jsonb
+      where id in (select id from latest)
+      returning id
+    )
+    insert into chat_history (user_id, messages)
+    select ${estado.id}, ${JSON.stringify(messages)}::jsonb
+    where not exists (select 1 from updated)
+  `;
 }
 
 // Garantiza una fila de suscripción para el usuario (estado inicial 'inactive').
