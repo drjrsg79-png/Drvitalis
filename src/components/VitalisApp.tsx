@@ -172,9 +172,9 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             <span style={{ fontStyle: "italic", color: T.goldDark }}>con un especialista a tu lado</span>
           </h1>
           <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 30px", maxWidth: "540px" }}>
-            El Dr. Vitalis es un urólogo guiado por inteligencia artificial que entiende tu caso, te orienta de forma
-            privada y te acompaña con un protocolo a tu medida: medicamentos con dosis, ejercicios terapéuticos y
-            seguimiento real de tu progreso.
+            El Dr. Vitalis es un asistente clínico de IA en salud sexual masculina que entiende tu caso, te orienta de
+            forma privada y te acompaña con ejercicios terapéuticos y seguimiento de tu progreso — y te guía con
+            claridad hacia consulta presencial cuando tu caso lo requiere.
           </p>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
@@ -331,8 +331,8 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "18px" }}>
           {[
             ["01", "Consulta privada 24/7", "Conversa con el Dr. Vitalis cuando lo necesites. Respuestas claras, en español y con tono médico profesional."],
-            ["02", "Protocolo personalizado", "Según tu edad, país y condición, recibes un plan con medicamentos, dosis exactas y ejercicios terapéuticos."],
-            ["03", "Seguimiento de adherencia", "Lleva el control de ejercicios completados y dosis tomadas para mejorar tus resultados con el tiempo."],
+            ["02", "Orientación personalizada", "Según tu edad, país y condición, recibes orientación clara sobre tu caso y ejercicios terapéuticos."],
+            ["03", "Seguimiento de tu progreso", "Lleva el control de ejercicios completados y avances para mejorar tus resultados con el tiempo."],
           ].map(([n, t, d]) => (
             <div
               key={n}
@@ -409,7 +409,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "18px" }}>
           {[
             ["Por fin pude hablar de algo que llevaba años evitando. Sin pena y a mi ritmo.", "Andrés M.", "41 años · Guadalajara"],
-            ["El protocolo fue claro: qué tomar, cuánto y por cuánto tiempo. Noté cambios en semanas.", "Roberto V.", "53 años · Monterrey"],
+            ["La orientación fue clara desde el principio: entendí qué opciones tenía y cuándo acudir a consulta. Noté cambios en semanas.", "Roberto V.", "53 años · Monterrey"],
             ["Tener respuestas a las 2 de la mañana, sin sentirme juzgado, cambió todo para mí.", "Diego H.", "36 años · CDMX"],
           ].map(([quote, name, meta]) => (
             <figure
@@ -459,7 +459,7 @@ const Landing = ({ onStart, onSubscribe }: { onStart: () => void; onSubscribe: (
             Acceso completo al Dr. Vitalis, protocolo personalizado y seguimiento. Cancela cuando quieras.
           </p>
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 26px", textAlign: "left", display: "flex", flexDirection: "column", gap: "12px" }}>
-            {["Consultas ilimitadas 24/7", "Medicamentos con dosis exactas", "Ejercicios terapéuticos guiados", "Seguimiento de tu progreso"].map((f) => (
+            {["Consultas ilimitadas 24/7", "Orientación clínica clara sobre tu caso", "Ejercicios terapéuticos guiados", "Seguimiento de tu progreso"].map((f) => (
               <li key={f} style={{ display: "flex", gap: "11px", alignItems: "center", fontSize: "14px", color: T.ink }}>
                 <span
                   style={{
@@ -758,7 +758,7 @@ const Onboarding = ({ intent, loading, onComplete }: { intent: Intent; loading: 
 const SUGERENCIAS = [
   "Tengo dudas sobre disfunción eréctil",
   "¿Qué ejercicios me recomiendas?",
-  "Quiero revisar mi medicación",
+  "¿Qué tipos de tratamiento existen para mi caso?",
 ];
 
 const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
@@ -783,7 +783,12 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemPrompt: `Eres el Dr. Vitalis, urólogo especialista en salud sexual masculina. Paciente: ${perfil.nombre}, ${perfil.edad || "edad no indicada"}, ${perfil.pais || "país no indicado"}. Condición: ${perfil.condicion || "no indicada"}. Responde siempre en español, con tono médico profesional, claro y empático. No uses emojis.`,
+          perfil: {
+            nombre: perfil.nombre,
+            edad: perfil.edad,
+            pais: perfil.pais,
+            condicion: perfil.condicion,
+          },
           messages: newMsgs,
         }),
       });
@@ -833,7 +838,7 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
           flexWrap: "wrap",
         }}
       >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
+        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para consultas ilimitadas y seguimiento completo.</span>
         <button
           onClick={onSubscribe}
           disabled={subscribing}
