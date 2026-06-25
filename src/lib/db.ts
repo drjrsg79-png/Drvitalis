@@ -77,3 +77,110 @@ export async function marcarPorCustomerId(
     where stripe_customer_id = ${stripeCustomerId}
   `;
 }
+
+// ----------------------------------------------------------------
+// AUTENTICACIÓN — magic link y sesiones
+// ----------------------------------------------------------------
+
+export type EstadoUsuario = {
+  id: string;
+  email: string;
+  nombre: string | null;
+  edad: number | null;
+  pais: string | null;
+  condicion: string | null;
+  suscripcionActiva: boolean;
+};
+
+// Crea (o reutiliza) el usuario por correo y devuelve su id. A diferencia de
+// upsertUsuario, esta función no requiere perfil médico: se usa para el flujo
+// de login, donde solo se conoce el correo.
+export async function obtenerOcrearUsuarioPorEmail(email: string): Promise<string> {
+  const filas = await db.sql<{ id: string }>`
+    insert into users (email)
+    values (${email})
+    on conflict (email) do update set email = excluded.email
+    returning id
+  `;
+  return filas[0].id;
+}
+
+// Genera un token de acceso de un solo uso, válido por 15 minutos.
+export async function crearTokenAcceso(email: string, token: string): Promise<void> {
+  await db.sql`
+    insert into auth_tokens (email, token, expires_at)
+    values (${email}, ${token}, now() + interval '15 minutes')
+  `;
+}
+
+// Evita spam de solicitudes: si ya se generó un token para este correo en los
+// últimos 60 segundos, no se permite generar otro de inmediato.
+export async function solicitudRecienteParaCorreo(email: string): Promise<boolean> {
+  const filas = await db.sql<{ id: string }>`
+    select id from auth_tokens
+    where email = ${email}
+      and created_at > now() - interval '60 seconds'
+    limit 1
+  `;
+  return filas.length > 0;
+}
+
+// Valida un token de acceso: debe existir, no estar usado y no haber expirado.
+// Si es válido, lo marca como usado (un solo uso) y devuelve el correo asociado.
+export async function consumirTokenAcceso(token: string): Promise<string | null> {
+  const filas = await db.sql<{ email: string }>`
+    update auth_tokens set used = true
+    where token = ${token}
+      and used = false
+      and expires_at > now()
+    returning email
+  `;
+  return filas[0]?.email ?? null;
+}
+
+// Crea una sesión de 30 días para el usuario y devuelve el token de sesión.
+export async function crearSesion(userId: string, sessionToken: string): Promise<void> {
+  await db.sql`
+    insert into sessions (user_id, token, expires_at)
+    values (${userId}, ${sessionToken}, now() + interval '30 days')
+  `;
+}
+
+// Elimina una sesión (cerrar sesión).
+export async function eliminarSesion(sessionToken: string): Promise<void> {
+  await db.sql`
+    delete from sessions where token = ${sessionToken}
+  `;
+}
+
+// A partir del token de sesión (cookie), devuelve el perfil del usuario y si
+// su suscripción está activa. Devuelve null si la sesión no existe o expiró.
+export async function obtenerUsuarioPorSesion(sessionToken: string): Promise<EstadoUsuario | null> {
+  const filas = await db.sql<{
+    id: string;
+    email: string;
+    nombre: string | null;
+    edad: number | null;
+    pais: string | null;
+    condicion: string | null;
+    status: string | null;
+  }>`
+    select u.id, u.email, u.nombre, u.edad, u.pais, u.condicion, s.status
+    from sessions sess
+    join users u on u.id = sess.user_id
+    left join subscriptions s on s.user_id = u.id
+    where sess.token = ${sessionToken}
+      and sess.expires_at > now()
+  `;
+  if (filas.length === 0) return null;
+  const fila = filas[0];
+  return {
+    id: fila.id,
+    email: fila.email,
+    nombre: fila.nombre,
+    edad: fila.edad,
+    pais: fila.pais,
+    condicion: fila.condicion,
+    suscripcionActiva: fila.status === "active",
+  };
+}
