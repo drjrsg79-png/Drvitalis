@@ -51,6 +51,26 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
   }
 }
 
+async function verificarAcceso(perfil: Perfil): Promise<boolean> {
+  try {
+    const res = await fetch("/api/subscription/access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: perfil.email,
+        nombre: perfil.nombre,
+        edad: perfil.edad,
+        pais: perfil.pais,
+        condicion: perfil.condicion,
+      }),
+    });
+    const data = await res.json();
+    return Boolean(data.active);
+  } catch {
+    return false;
+  }
+}
+
 const Monogram = ({ size = 30 }: { size?: number }) => (
   <div
     style={{
@@ -761,7 +781,7 @@ const SUGERENCIAS = [
   "Quiero revisar mi medicación",
 ];
 
-const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubscribe: () => void; subscribing: boolean }) => {
+const ChatView = ({ perfil, hasAccess, onSubscribe, subscribing }: { perfil: Perfil; hasAccess: boolean; onSubscribe: () => void; subscribing: boolean }) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
   ]);
@@ -821,38 +841,40 @@ const ChatView = ({ perfil, onSubscribe, subscribing }: { perfil: Perfil; onSubs
         </div>
       </div>
 
-      <div
-        style={{
-          background: "rgba(184,146,42,0.08)",
-          borderBottom: `1px solid ${T.border}`,
-          padding: "11px 18px",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: "12px",
-          flexWrap: "wrap",
-        }}
-      >
-        <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
-        <button
-          onClick={onSubscribe}
-          disabled={subscribing}
-          className="btn btn-primary"
+      {!hasAccess && (
+        <div
           style={{
-            padding: "9px 18px",
-            background: T.gold,
-            color: T.white,
-            border: "none",
-            borderRadius: "999px",
-            fontSize: "12px",
-            fontWeight: 700,
-            cursor: subscribing ? "wait" : "pointer",
-            whiteSpace: "nowrap",
+            background: "rgba(184,146,42,0.08)",
+            borderBottom: `1px solid ${T.border}`,
+            padding: "11px 18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
           }}
         >
-          {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
-        </button>
-      </div>
+          <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para tu protocolo completo y consultas ilimitadas.</span>
+          <button
+            onClick={onSubscribe}
+            disabled={subscribing}
+            className="btn btn-primary"
+            style={{
+              padding: "9px 18px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              cursor: subscribing ? "wait" : "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
+          </button>
+        </div>
+      )}
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ maxWidth: "760px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -964,9 +986,20 @@ export default function App() {
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
   const [intent, setIntent] = useState<Intent>("chat");
   const [redirecting, setRedirecting] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("success") === "true") {
+      const saved = window.localStorage.getItem("vitalis_perfil");
+      if (saved) {
+        try {
+          setPerfil(JSON.parse(saved));
+        } catch {
+          window.localStorage.removeItem("vitalis_perfil");
+        }
+      }
+      setHasAccess(true);
       setScreen("success");
       window.history.replaceState({}, "", "/");
     }
@@ -974,6 +1007,7 @@ export default function App() {
 
   const irACheckout = async (p: Perfil) => {
     setRedirecting(true);
+    window.localStorage.setItem("vitalis_perfil", JSON.stringify(p));
     const url = await iniciarCheckout(p);
     if (url) {
       window.location.href = url;
@@ -983,11 +1017,15 @@ export default function App() {
     }
   };
 
-  const completarOnboarding = (p: Perfil) => {
+  const completarOnboarding = async (p: Perfil) => {
     setPerfil(p);
     if (intent === "subscribe") {
       irACheckout(p);
     } else {
+      setCheckingAccess(true);
+      const activo = await verificarAcceso(p);
+      setHasAccess(activo);
+      setCheckingAccess(false);
       setScreen("chat");
     }
   };
@@ -1006,10 +1044,11 @@ export default function App() {
           }}
         />
       )}
-      {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting} onComplete={completarOnboarding} />}
+      {screen === "onboarding" && <Onboarding intent={intent} loading={redirecting || checkingAccess} onComplete={completarOnboarding} />}
       {screen === "chat" && (
         <ChatView
           perfil={perfil}
+          hasAccess={hasAccess}
           subscribing={redirecting}
           onSubscribe={() => {
             setIntent("subscribe");
