@@ -205,6 +205,9 @@ h3 {
   .phone-grid {
     grid-template-columns: 1fr !important;
   }
+  .credentials-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
