@@ -1,13 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { guardarHistorialPorEmail, obtenerSesionPorEmail } from '@/lib/db';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
 export async function POST(request: NextRequest) {
   try {
-    const { systemPrompt, messages } = (await request.json()) as {
+    const { email, systemPrompt, messages } = (await request.json()) as {
+      email?: string;
       systemPrompt?: string;
       messages?: ChatMessage[];
     };
+
+    if (!email) {
+      return NextResponse.json(
+        { reply: 'Necesito validar su correo antes de continuar.' },
+        { status: 401 }
+      );
+    }
+
+    const session = await obtenerSesionPorEmail(email);
+    if (!session.active) {
+      return NextResponse.json(
+        { reply: 'Para ver su resultado y continuar el chat, active Vitalis Pro con el pago seguro.' },
+        { status: 402 }
+      );
+    }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -63,6 +80,8 @@ export async function POST(request: NextRequest) {
     const reply: string =
       data?.content?.[0]?.text ||
       'Disculpe, no pude formular una respuesta. ¿Podría reformular su consulta?';
+
+    await guardarHistorialPorEmail(email, [...sanitized, { role: 'assistant', content: reply }]);
 
     return NextResponse.json({ reply });
   } catch {
