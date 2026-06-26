@@ -573,7 +573,7 @@ const Landing = ({
           {[
             ["1", "Cuéntanos tu caso", "Completas un perfil breve y confidencial con tu información básica."],
             ["2", "Habla con el Dr. Vitalis", "Recibes orientación inmediata sobre tu salud sexual, sin esperas ni citas."],
-            ["3", "Sigue tu protocolo", "Activas Vitalis para acceder a tu plan completo y al acompañamiento continuo."],
+            ["3", "Active Vitalis Pro cuando esté listo", `Por ${PRECIO}/mes, consultas ilimitadas, ejercicios guiados y seguimiento continuo. Cancele cuando quiera.`],
           ].map(([n, t, d]) => (
             <div
               key={n}
@@ -710,6 +710,22 @@ const Landing = ({
           >
             {auth?.suscripcionActiva ? "Ya tienes Vitalis Pro ✓" : "Activar Vitalis Pro"}
           </button>
+          {!auth?.suscripcionActiva && (
+            <p
+              style={{
+                fontSize: "12.5px",
+                color: T.teal,
+                fontWeight: 700,
+                margin: "14px 0 0",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "6px",
+              }}
+            >
+              <span>🔒</span> Sin compromiso — cancele en un toque cuando quiera
+            </p>
+          )}
         </div>
       </section>
 
@@ -722,7 +738,7 @@ const Landing = ({
           {[
             ["¿Mis conversaciones son privadas?", "Sí. Lo que compartes con el Dr. Vitalis es confidencial y tu información se mantiene protegida en todo momento."],
             ["¿El Dr. Vitalis sustituye a mi médico?", "No. Vitalis te orienta y te acompaña, pero no reemplaza una valoración presencial ni la atención de urgencias."],
-            ["¿Puedo cancelar cuando quiera?", "Por supuesto. La suscripción es mensual y puedes cancelarla en cualquier momento, sin penalizaciones."],
+            ["¿Puedo cancelar cuando quiera?", "Por supuesto. La suscripción es mensual y puedes cancelarla en cualquier momento, sin penalizaciones ni preguntas."],
             ["¿Cómo se realiza el cobro?", `El cobro de ${PRECIO} al mes se procesa de forma segura a través de Stripe.`],
           ].map(([q, a]) => (
             <details
@@ -848,13 +864,21 @@ const Onboarding = ({
   loading,
   onComplete,
   correoFijo,
+  perfilPrevio,
 }: {
   intent: Intent;
   loading: boolean;
   onComplete: (p: Perfil) => void;
   correoFijo?: string;
+  perfilPrevio?: Perfil;
 }) => {
-  const [form, setForm] = useState<Perfil>({ nombre: "", email: correoFijo || "", edad: "", pais: "", condicion: "" });
+  const [form, setForm] = useState<Perfil>({
+    nombre: perfilPrevio?.nombre || "",
+    email: correoFijo || perfilPrevio?.email || "",
+    edad: perfilPrevio?.edad || "",
+    pais: perfilPrevio?.pais || "",
+    condicion: perfilPrevio?.condicion || "",
+  });
   const [touched, setTouched] = useState(false);
   const nombreOk = form.nombre.trim() !== "";
   const correoOk = emailValido(form.email);
@@ -873,8 +897,99 @@ const Onboarding = ({
 
   const submit = () => {
     setTouched(true);
+    if (intent === "chat") {
+      if (nombreOk && !loading) onComplete(form);
+      return;
+    }
     if (valido && !loading) onComplete(form);
   };
+
+  // Para el flujo de chat gratuito, el onboarding se reduce a un solo campo
+  // (nombre) para minimizar la fricción antes de la primera conversación.
+  // El correo se pide después, cuando el usuario llega al límite gratuito o
+  // decide suscribirse — en ese punto ya está comprometido con el producto y
+  // el costo de pedir el dato es mucho menor.
+  if (intent === "chat") {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "32px 24px",
+          background: T.cream,
+        }}
+      >
+        <div className="rise" style={{ maxWidth: "420px", width: "100%", animationDelay: "0.04s" }}>
+          <div style={{ marginBottom: "10px" }}>
+            <Header />
+          </div>
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "5px 12px",
+              background: "rgba(45,125,111,0.1)",
+              color: T.teal,
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+              margin: "20px 0 14px",
+            }}
+          >
+            Antes de comenzar
+          </div>
+          <h2 style={{ fontFamily: display, fontSize: "27px", fontWeight: 600, color: T.charcoal, margin: "0 0 8px" }}>
+            ¿Cómo le llamamos?
+          </h2>
+          <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 22px", lineHeight: 1.55 }}>
+            Solo eso, para empezar. Todo lo demás se lo preguntará el Dr. Vitalis en la conversación.
+          </p>
+
+          <div style={{ marginBottom: "18px" }}>
+            <input
+              className="field"
+              placeholder="Nombre"
+              value={form.nombre}
+              autoFocus
+              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
+              style={{ ...inputBase, fontSize: "16px", padding: "15px 16px", borderColor: touched && !nombreOk ? "#C0492F" : T.border }}
+            />
+            {touched && !nombreOk && (
+              <div style={{ fontSize: "12px", color: "#C0492F", marginTop: "6px" }}>Indica tu nombre para continuar.</div>
+            )}
+          </div>
+
+          <button
+            onClick={submit}
+            className="btn btn-primary"
+            style={{
+              width: "100%",
+              padding: "15px",
+              background: T.gold,
+              color: T.white,
+              border: "none",
+              borderRadius: "999px",
+              cursor: "pointer",
+              fontSize: "15px",
+              fontWeight: 700,
+            }}
+          >
+            Empezar a conversar
+          </button>
+          <p style={{ fontSize: "12px", color: T.muted, textAlign: "center", margin: "16px 0 0", lineHeight: 1.5 }}>
+            Confidencial. Su correo solo se pedirá si decide continuar con Vitalis Pro.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -898,23 +1013,21 @@ const Onboarding = ({
             alignItems: "center",
             gap: "8px",
             padding: "5px 12px",
-            background: intent === "subscribe" ? "rgba(184,146,42,0.12)" : "rgba(45,125,111,0.1)",
-            color: intent === "subscribe" ? T.goldDark : T.teal,
+            background: "rgba(184,146,42,0.12)",
+            color: T.goldDark,
             borderRadius: "999px",
             fontSize: "12px",
             fontWeight: 700,
             margin: "20px 0 14px",
           }}
         >
-          {intent === "subscribe" ? "Paso final · Activar Vitalis Pro" : "Paso 1 de 2 · Tu perfil"}
+          Paso final · Activar Vitalis Pro
         </div>
         <h2 style={{ fontFamily: display, fontSize: "27px", fontWeight: 600, color: T.charcoal, margin: "0 0 8px" }}>
           Información personal
         </h2>
         <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 26px", lineHeight: 1.55 }}>
-          {intent === "subscribe"
-            ? "Confirma tus datos para activar Vitalis Pro. El cobro se realiza de forma segura con Stripe."
-            : "Confidencial. Nos ayuda a personalizar la orientación del Dr. Vitalis."}
+          Confirma tus datos para activar Vitalis Pro. El cobro se realiza de forma segura con Stripe.
         </p>
 
         <div style={{ marginBottom: "14px" }}>
@@ -989,11 +1102,7 @@ const Onboarding = ({
             fontWeight: 700,
           }}
         >
-          {loading
-            ? "Redirigiendo a pago seguro..."
-            : intent === "subscribe"
-              ? `Continuar al pago — ${PRECIO}/mes`
-              : "Continuar a la consulta"}
+          {loading ? "Redirigiendo a pago seguro..." : `Continuar al pago — ${PRECIO}/mes`}
         </button>
         <p style={{ fontSize: "12px", color: T.muted, textAlign: "center", margin: "16px 0 0", lineHeight: 1.5 }}>
           Tu información es confidencial y se usa solo para personalizar tu acompañamiento.
@@ -1218,38 +1327,45 @@ const ChatView = ({
             style={{
               maxWidth: "760px",
               margin: "0 auto",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "12px",
-              flexWrap: "wrap",
               background: "rgba(184,146,42,0.08)",
               border: `1px solid ${T.gold}`,
-              borderRadius: "14px",
-              padding: "14px 16px",
+              borderRadius: "16px",
+              padding: "18px 20px",
             }}
           >
-            <span style={{ fontSize: "13px", color: T.ink, fontWeight: 600 }}>
-              Llegó al límite de consultas gratuitas. Active Vitalis Pro para continuar.
-            </span>
-            <button
-              onClick={onSubscribe}
-              disabled={subscribing}
-              className="btn btn-primary"
-              style={{
-                padding: "11px 22px",
-                background: T.gold,
-                color: T.white,
-                border: "none",
-                borderRadius: "999px",
-                fontSize: "13px",
-                fontWeight: 700,
-                cursor: subscribing ? "wait" : "pointer",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {subscribing ? "Procesando..." : `Activar Vitalis Pro — ${PRECIO}/mes`}
-            </button>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "12px" }}>
+              <Monogram size={28} />
+              <div>
+                <p style={{ fontSize: "13.5px", color: T.ink, fontWeight: 700, margin: "0 0 3px" }}>
+                  Ha usado sus 3 consultas gratuitas
+                </p>
+                <p style={{ fontSize: "13px", color: T.muted, margin: 0, lineHeight: 1.5 }}>
+                  Para que sigamos revisando su caso sin interrupciones — y con seguimiento de su progreso —
+                  active Vitalis Pro. Toma menos de un minuto.
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "12px", color: T.teal, fontWeight: 700 }}>🔒 Sin compromiso — cancele cuando quiera</span>
+              <button
+                onClick={onSubscribe}
+                disabled={subscribing}
+                className="btn btn-primary"
+                style={{
+                  padding: "12px 24px",
+                  background: T.gold,
+                  color: T.white,
+                  border: "none",
+                  borderRadius: "999px",
+                  fontSize: "13.5px",
+                  fontWeight: 700,
+                  cursor: subscribing ? "wait" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {subscribing ? "Procesando..." : `Continuar con Vitalis Pro — ${PRECIO}/mes`}
+              </button>
+            </div>
           </div>
         ) : (
           <div style={{ maxWidth: "760px", margin: "0 auto", display: "flex", gap: "10px" }}>
@@ -1431,6 +1547,7 @@ export default function App() {
           loading={redirecting}
           onComplete={completarOnboarding}
           correoFijo={auth?.email}
+          perfilPrevio={perfil}
         />
       )}
       {screen === "chat" && (
@@ -1439,7 +1556,14 @@ export default function App() {
           subscribing={redirecting}
           onSubscribe={() => {
             setIntent("subscribe");
-            irACheckout(perfil);
+            // Si ya se tiene correo (por sesión activa o captura previa), se
+            // va directo a Stripe. Si no, se pide el formulario completo de
+            // pago primero — el chat gratuito solo capturó el nombre.
+            if (perfil.email && emailValido(perfil.email)) {
+              irACheckout(perfil);
+            } else {
+              setScreen("onboarding");
+            }
           }}
           auth={auth}
           onLogout={manejarLogout}
