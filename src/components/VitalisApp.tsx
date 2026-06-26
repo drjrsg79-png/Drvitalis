@@ -6,11 +6,12 @@ const T = {
   creamDeep: "#EFE9DF",
   charcoal: "#1B1B1D",
   gold: "#B8922A",
+  goldButton: "#8A6C1B",
   goldDark: "#9A7A1F",
   white: "#FFFFFF",
   ink: "#2E2E30",
   border: "#E2DCCF",
-  muted: "#7A7670",
+  muted: "#716D67",
   teal: "#2D7D6F",
 };
 
@@ -56,6 +57,14 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
   const [enviado, setEnviado] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
   const solicitar = async () => {
     if (!emailValido(email)) {
       setError("Ingrese un correo válido.");
@@ -83,6 +92,9 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
 
   return (
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Iniciar sesión"
       style={{
         position: "fixed",
         inset: 0,
@@ -146,6 +158,7 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="su@correo.com"
+              aria-label="Correo electrónico"
               onKeyDown={(e) => {
                 if (e.key === "Enter") solicitar();
               }}
@@ -171,7 +184,7 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
               style={{
                 width: "100%",
                 padding: "14px",
-                background: T.gold,
+                background: T.goldButton,
                 color: T.white,
                 border: "none",
                 borderRadius: "999px",
@@ -392,7 +405,7 @@ const Landing = ({
               className="btn btn-primary"
               style={{
                 padding: "15px 32px",
-                background: T.gold,
+                background: T.goldButton,
                 color: T.white,
                 border: "none",
                 borderRadius: "999px",
@@ -845,7 +858,7 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
       className="btn btn-primary"
       style={{
         padding: "15px 32px",
-        background: T.gold,
+        background: T.goldButton,
         color: T.white,
         border: "none",
         borderRadius: "999px",
@@ -955,6 +968,7 @@ const Onboarding = ({
               placeholder="Nombre"
               value={form.nombre}
               autoFocus
+              aria-label="Nombre"
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               onKeyDown={(e) => {
                 if (e.key === "Enter") submit();
@@ -972,7 +986,7 @@ const Onboarding = ({
             style={{
               width: "100%",
               padding: "15px",
-              background: T.gold,
+              background: T.goldButton,
               color: T.white,
               border: "none",
               borderRadius: "999px",
@@ -1035,6 +1049,7 @@ const Onboarding = ({
             className="field"
             placeholder="Nombre"
             value={form.nombre}
+            aria-label="Nombre"
             onChange={(e) => setForm({ ...form, nombre: e.target.value })}
             style={{ ...inputBase, borderColor: touched && !nombreOk ? "#C0492F" : T.border }}
           />
@@ -1050,6 +1065,7 @@ const Onboarding = ({
             type="email"
             value={form.email}
             disabled={!!correoFijo}
+            aria-label="Correo electrónico"
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             style={{
               ...inputBase,
@@ -1068,6 +1084,7 @@ const Onboarding = ({
           placeholder="Edad"
           inputMode="numeric"
           value={form.edad}
+          aria-label="Edad"
           onChange={(e) => setForm({ ...form, edad: e.target.value })}
           style={{ ...inputBase, marginBottom: "14px" }}
         />
@@ -1075,6 +1092,7 @@ const Onboarding = ({
           className="field"
           placeholder="País"
           value={form.pais}
+          aria-label="País"
           onChange={(e) => setForm({ ...form, pais: e.target.value })}
           style={{ ...inputBase, marginBottom: "14px" }}
         />
@@ -1082,6 +1100,7 @@ const Onboarding = ({
           className="field"
           placeholder="Condición o motivo de consulta"
           value={form.condicion}
+          aria-label="Condición o motivo de consulta"
           onChange={(e) => setForm({ ...form, condicion: e.target.value })}
           style={{ ...inputBase, marginBottom: "20px" }}
         />
@@ -1236,7 +1255,7 @@ const ChatView = ({
             className="btn btn-primary"
             style={{
               padding: "9px 18px",
-              background: T.gold,
+              background: T.goldButton,
               color: T.white,
               border: "none",
               borderRadius: "999px",
@@ -1353,7 +1372,7 @@ const ChatView = ({
                 className="btn btn-primary"
                 style={{
                   padding: "12px 24px",
-                  background: T.gold,
+                  background: T.goldButton,
                   color: T.white,
                   border: "none",
                   borderRadius: "999px",
@@ -1374,6 +1393,7 @@ const ChatView = ({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Escriba su consulta..."
+              aria-label="Escriba su consulta"
               onKeyDown={(e) => {
                 if (e.key === "Enter") send(input);
               }}
