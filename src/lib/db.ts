@@ -184,3 +184,19 @@ export async function obtenerUsuarioPorSesion(sessionToken: string): Promise<Est
     suscripcionActiva: fila.status === "active",
   };
 }
+
+// Obtiene el stripe_customer_id del usuario a partir de su sesión activa.
+// Se usa para abrir el Customer Portal de Stripe (administrar suscripción).
+// Devuelve null si la sesión no existe, expiró, o el usuario nunca pagó
+// (y por tanto no tiene un cliente de Stripe asociado todavía).
+export async function obtenerStripeCustomerIdPorSesion(sessionToken: string): Promise<string | null> {
+  const filas = await db.sql<{ stripe_customer_id: string | null }>`
+    select s.stripe_customer_id
+    from sessions sess
+    join users u on u.id = sess.user_id
+    left join subscriptions s on s.user_id = u.id
+    where sess.token = ${sessionToken}
+      and sess.expires_at > now()
+  `;
+  return filas[0]?.stripe_customer_id ?? null;
+}
