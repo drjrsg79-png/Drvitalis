@@ -54,7 +54,7 @@ export default function RootLayout({
       "Asistente clínico digital de salud sexual masculina, desarrollado bajo el enfoque médico del Dr. José Rogelio Sánchez García.",
     url: "https://drvitalis1.com",
     medicalSpecialty: "Urology",
-    priceRange: "$599 MXN/mes",
+    priceRange: "$300 MXN/mes",
     areaServed: "MX",
     physician: {
       "@type": "Physician",
