@@ -759,6 +759,27 @@ const Landing = ({
           Vitalis — Salud sexual masculina con IA. La información que ofrece el Dr. Vitalis es orientativa y no sustituye
           una consulta médica presencial ni la atención de urgencia.
         </p>
+        <div
+          style={{
+            maxWidth: "560px",
+            margin: "16px auto 0",
+            paddingTop: "14px",
+            borderTop: `1px solid ${T.border}`,
+          }}
+        >
+          <p style={{ fontSize: "12.5px", color: T.ink, fontWeight: 700, margin: "0 0 4px" }}>
+            Dr. José Rogelio Sánchez García
+          </p>
+          <p style={{ fontSize: "11.5px", color: T.muted, margin: "0 0 2px", lineHeight: 1.5 }}>
+            Especialista en Medicina Interna y Terapia Intensiva · Diplomado en Andrología
+          </p>
+          <p style={{ fontSize: "11.5px", color: T.muted, margin: "0 0 2px" }}>
+            Céd. Prof. 4273375 / 6525546 · Centro de Salud Sexual Masculina
+          </p>
+          <p style={{ fontSize: "11px", color: T.muted, margin: "8px 0 0", lineHeight: 1.5 }}>
+            Vitalis es un asistente clínico digital desarrollado bajo el enfoque médico del Dr. José Rogelio Sánchez García.
+          </p>
+        </div>
       </footer>
     </div>
   </div>
@@ -1006,13 +1027,14 @@ const ChatView = ({
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [limiteAlcanzado, setLimiteAlcanzado] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgs, loading]);
 
   const send = async (text: string) => {
-    if (!text.trim() || loading) return;
+    if (!text.trim() || loading || limiteAlcanzado) return;
     const newMsgs: ChatMessage[] = [...msgs, { role: "user", content: text }];
     setMsgs(newMsgs);
     setInput("");
@@ -1033,6 +1055,9 @@ const ChatView = ({
       });
       const data = await res.json();
       setMsgs((p) => [...p, { role: "assistant", content: data.reply || "Disculpe, no pude responder en este momento." }]);
+      if (data.limite_alcanzado) {
+        setLimiteAlcanzado(true);
+      }
     } catch {
       setMsgs((p) => [...p, { role: "assistant", content: "Error de conexión. Intente nuevamente en unos segundos." }]);
     }
@@ -1059,7 +1084,7 @@ const ChatView = ({
             <div style={{ fontSize: "15px", fontWeight: 700, color: T.charcoal }}>Dr. Vitalis</div>
             <div style={{ fontSize: "11px", color: T.teal, display: "flex", alignItems: "center", gap: "5px" }}>
               <span className="status-online" style={{ width: "7px", height: "7px", borderRadius: "999px", background: T.teal }} />
-              En línea · Urología
+              En línea · Dr. José Rogelio Sánchez García
             </div>
           </div>
         </div>
@@ -1140,7 +1165,7 @@ const ChatView = ({
             </div>
           ))}
 
-          {soloSaludo && !loading && (
+          {soloSaludo && !loading && !limiteAlcanzado && (
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", paddingTop: "4px" }}>
               {SUGERENCIAS.map((s) => (
                 <button
@@ -1188,35 +1213,75 @@ const ChatView = ({
       </div>
 
       <div style={{ padding: "14px 18px", borderTop: `1px solid ${T.border}`, background: T.white }}>
-        <div style={{ maxWidth: "760px", margin: "0 auto", display: "flex", gap: "10px" }}>
-          <input
-            className="field"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Escriba su consulta..."
-            onKeyDown={(e) => {
-              if (e.key === "Enter") send(input);
-            }}
-            style={{ flex: 1, padding: "13px 15px", border: `1px solid ${T.border}`, borderRadius: "999px", fontSize: "14px", background: T.cream, color: T.ink }}
-          />
-          <button
-            onClick={() => send(input)}
-            disabled={!input.trim() || loading}
-            className="btn btn-primary"
+        {limiteAlcanzado ? (
+          <div
             style={{
-              padding: "12px 24px",
-              background: !input.trim() || loading ? T.border : T.gold,
-              color: T.white,
-              border: "none",
-              borderRadius: "999px",
-              cursor: !input.trim() || loading ? "not-allowed" : "pointer",
-              fontWeight: 700,
-              fontSize: "14px",
+              maxWidth: "760px",
+              margin: "0 auto",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              flexWrap: "wrap",
+              background: "rgba(184,146,42,0.08)",
+              border: `1px solid ${T.gold}`,
+              borderRadius: "14px",
+              padding: "14px 16px",
             }}
           >
-            Enviar
-          </button>
-        </div>
+            <span style={{ fontSize: "13px", color: T.ink, fontWeight: 600 }}>
+              Llegó al límite de consultas gratuitas. Active Vitalis Pro para continuar.
+            </span>
+            <button
+              onClick={onSubscribe}
+              disabled={subscribing}
+              className="btn btn-primary"
+              style={{
+                padding: "11px 22px",
+                background: T.gold,
+                color: T.white,
+                border: "none",
+                borderRadius: "999px",
+                fontSize: "13px",
+                fontWeight: 700,
+                cursor: subscribing ? "wait" : "pointer",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {subscribing ? "Procesando..." : `Activar Vitalis Pro — ${PRECIO}/mes`}
+            </button>
+          </div>
+        ) : (
+          <div style={{ maxWidth: "760px", margin: "0 auto", display: "flex", gap: "10px" }}>
+            <input
+              className="field"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Escriba su consulta..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter") send(input);
+              }}
+              style={{ flex: 1, padding: "13px 15px", border: `1px solid ${T.border}`, borderRadius: "999px", fontSize: "14px", background: T.cream, color: T.ink }}
+            />
+            <button
+              onClick={() => send(input)}
+              disabled={!input.trim() || loading}
+              className="btn btn-primary"
+              style={{
+                padding: "12px 24px",
+                background: !input.trim() || loading ? T.border : T.gold,
+                color: T.white,
+                border: "none",
+                borderRadius: "999px",
+                cursor: !input.trim() || loading ? "not-allowed" : "pointer",
+                fontWeight: 700,
+                fontSize: "14px",
+              }}
+            >
+              Enviar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
