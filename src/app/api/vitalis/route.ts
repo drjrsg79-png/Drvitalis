@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { obtenerUsuarioPorSesion } from '@/lib/db';
 
 type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
@@ -8,6 +9,11 @@ type PerfilPaciente = {
   pais?: string;
   condicion?: string;
 };
+
+// Límite de mensajes del usuario para cuentas sin Vitalis Pro. Se cuenta del
+// lado del servidor (cookie incrementada aquí, nunca por el cliente) para que
+// no se pueda manipular editando el array de mensajes antes de enviarlo.
+const LIMITE_MENSAJES_GRATIS = 3;
 
 // El system prompt vive ÚNICAMENTE en el servidor. El cliente nunca debe poder
 // definir ni sobreescribir estas reglas: si el prompt se construyera con datos
@@ -38,12 +44,39 @@ LO QUE SÍ PUEDES HACER:
 Si el usuario insiste en obtener una dosis o nombre de medicamento con cantidad específica, responde con firmeza y empatía: "Eso es justo lo que su médico necesita evaluar en persona, porque depende de su historial y otros medicamentos que tome. Lo que sí puedo hacer es explicarle las opciones que existen y ayudarle a preparar esa consulta."`;
 }
 
+const MENSAJE_LIMITE_ALCANZADO =
+  'Ha llegado al límite de consultas gratuitas. Active Vitalis Pro para continuar con consultas ilimitadas, ejercicios terapéuticos guiados y seguimiento de su progreso.';
+
 export async function POST(request: NextRequest) {
   try {
     const { perfil, messages } = (await request.json()) as {
       perfil?: PerfilPaciente;
       messages?: ChatMessage[];
     };
+
+    // Determina si el usuario tiene Vitalis Pro activo a través de su sesión.
+    // Si no hay sesión o no tiene suscripción activa, se aplica el límite de
+    // mensajes gratuitos contado por una cookie que solo el servidor escribe.
+    const sessionToken = request.cookies.get('vitalis_session')?.value;
+    let esPro = false;
+    if (sessionToken) {
+      try {
+        const usuario = await obtenerUsuarioPorSesion(sessionToken);
+        esPro = !!usuario?.suscripcionActiva;
+      } catch {
+        esPro = false;
+      }
+    }
+
+    if (!esPro) {
+      const contadorActual = parseInt(request.cookies.get('vitalis_msgs_gratis')?.value || '0', 10);
+      if (contadorActual >= LIMITE_MENSAJES_GRATIS) {
+        return NextResponse.json(
+          { reply: MENSAJE_LIMITE_ALCANZADO, limite_alcanzado: true },
+          { status: 200 }
+        );
+      }
+    }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
@@ -100,7 +133,22 @@ export async function POST(request: NextRequest) {
       data?.content?.[0]?.text ||
       'Disculpe, no pude formular una respuesta. ¿Podría reformular su consulta?';
 
-    return NextResponse.json({ reply });
+    const respuesta = NextResponse.json({ reply });
+
+    // Incrementa el contador de mensajes gratuitos solo si la consulta se
+    // respondió con éxito y el usuario no tiene Pro.
+    if (!esPro) {
+      const contadorActual = parseInt(request.cookies.get('vitalis_msgs_gratis')?.value || '0', 10);
+      respuesta.cookies.set('vitalis_msgs_gratis', String(contadorActual + 1), {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 365,
+      });
+    }
+
+    return respuesta;
   } catch {
     return NextResponse.json(
       { reply: 'Error de conexión con Dr. Vitalis. Intente nuevamente.' },
