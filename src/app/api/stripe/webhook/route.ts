@@ -55,6 +55,19 @@ export async function POST(req: NextRequest) {
         }
         break;
       }
+      case "invoice.payment_succeeded": {
+        // Cobro recurrente exitoso (renovación mensual, o recuperación tras
+        // un pago fallido anterior). Se reactiva la suscripción si no lo
+        // estaba — sin esto, un cliente que corrigió su tarjeta después de
+        // un "past_due" quedaría bloqueado aunque Stripe ya le esté cobrando.
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId =
+          typeof invoice.customer === "string" ? invoice.customer : null;
+        if (customerId) {
+          await marcarPorCustomerId(customerId, "active");
+        }
+        break;
+      }
       default:
         break;
     }
