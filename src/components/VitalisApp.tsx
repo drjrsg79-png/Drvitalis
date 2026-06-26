@@ -51,6 +51,22 @@ async function cerrarSesion(): Promise<void> {
   }
 }
 
+// Abre el Customer Portal de Stripe (administrar suscripción: cancelar, ver
+// facturas, cambiar método de pago). Devuelve true si pudo redirigir, false
+// si hubo un error — en ese caso el llamador debe mostrar el mensaje al usuario.
+async function abrirPortalSuscripcion(): Promise<string | null> {
+  try {
+    const res = await fetch("/api/stripe/portal", { method: "POST" });
+    const data = await res.json();
+    if (res.ok && data.url) {
+      return data.url as string;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 const LoginModal = ({ onClose }: { onClose: () => void }) => {
   const [email, setEmail] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -273,12 +289,16 @@ const Landing = ({
   auth,
   onOpenLogin,
   onLogout,
+  onAbrirPortal,
+  portalCargando,
 }: {
   onStart: () => void;
   onSubscribe: () => void;
   auth: AuthUsuario | null;
   onOpenLogin: () => void;
   onLogout: () => void;
+  onAbrirPortal: () => void;
+  portalCargando: boolean;
 }) => (
   <div style={{ minHeight: "100vh", background: T.cream, color: T.ink }}>
     {/* Atmospheric backdrop */}
@@ -311,6 +331,25 @@ const Landing = ({
             <span style={{ fontSize: "12.5px", color: T.muted, display: "none" }} className="auth-email-desktop">
               {auth.email}
             </span>
+            {auth.suscripcionActiva && (
+              <button
+                onClick={onAbrirPortal}
+                disabled={portalCargando}
+                className="btn btn-ghost"
+                style={{
+                  padding: "10px 18px",
+                  background: "transparent",
+                  color: T.charcoal,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: "999px",
+                  fontSize: "13px",
+                  fontWeight: 700,
+                  cursor: portalCargando ? "wait" : "pointer",
+                }}
+              >
+                {portalCargando ? "Abriendo..." : "Administrar suscripción"}
+              </button>
+            )}
             <button
               onClick={onLogout}
               className="btn btn-ghost"
@@ -1143,12 +1182,16 @@ const ChatView = ({
   subscribing,
   auth,
   onLogout,
+  onAbrirPortal,
+  portalCargando,
 }: {
   perfil: Perfil;
   onSubscribe: () => void;
   subscribing: boolean;
   auth: AuthUsuario | null;
   onLogout: () => void;
+  onAbrirPortal: () => void;
+  portalCargando: boolean;
 }) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
@@ -1217,21 +1260,42 @@ const ChatView = ({
           </div>
         </div>
         {auth && (
-          <button
-            onClick={onLogout}
-            style={{
-              padding: "8px 14px",
-              background: "transparent",
-              color: T.muted,
-              border: `1px solid ${T.border}`,
-              borderRadius: "999px",
-              fontSize: "12px",
-              fontWeight: 700,
-              cursor: "pointer",
-            }}
-          >
-            Cerrar sesión
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            {auth.suscripcionActiva && (
+              <button
+                onClick={onAbrirPortal}
+                disabled={portalCargando}
+                style={{
+                  padding: "8px 14px",
+                  background: "transparent",
+                  color: T.muted,
+                  border: `1px solid ${T.border}`,
+                  borderRadius: "999px",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  cursor: portalCargando ? "wait" : "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {portalCargando ? "Abriendo..." : "Administrar suscripción"}
+              </button>
+            )}
+            <button
+              onClick={onLogout}
+              style={{
+                padding: "8px 14px",
+                background: "transparent",
+                color: T.muted,
+                border: `1px solid ${T.border}`,
+                borderRadius: "999px",
+                fontSize: "12px",
+                fontWeight: 700,
+                cursor: "pointer",
+              }}
+            >
+              Cerrar sesión
+            </button>
+          </div>
         )}
       </div>
 
@@ -1432,6 +1496,7 @@ export default function App() {
   const [authCargado, setAuthCargado] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [authAviso, setAuthAviso] = useState<string | null>(null);
+  const [portalCargando, setPortalCargando] = useState(false);
 
   const consultarSesion = async () => {
     try {
@@ -1487,6 +1552,13 @@ export default function App() {
       setAuthAviso("No se pudo iniciar sesión. Intente de nuevo.");
       window.history.replaceState({}, "", "/");
     }
+
+    if (params.get("portal") === "ok") {
+      window.history.replaceState({}, "", "/");
+      // Tras volver del portal de Stripe, se refresca el estado de sesión:
+      // si el usuario canceló ahí, el botón de pago debe volver a aparecer.
+      consultarSesion();
+    }
   }, []);
 
   const irACheckout = async (p: Perfil) => {
@@ -1513,6 +1585,17 @@ export default function App() {
     await cerrarSesion();
     setAuth(null);
     setScreen("landing");
+  };
+
+  const manejarAbrirPortal = async () => {
+    setPortalCargando(true);
+    const url = await abrirPortalSuscripcion();
+    if (url) {
+      window.location.href = url;
+    } else {
+      setPortalCargando(false);
+      alert("No se pudo abrir el portal de administración. Intente de nuevo en unos segundos.");
+    }
   };
 
   // Mientras se confirma si hay sesión activa, se evita parpadear el botón
@@ -1559,6 +1642,8 @@ export default function App() {
           auth={auth}
           onOpenLogin={() => setShowLogin(true)}
           onLogout={manejarLogout}
+          onAbrirPortal={manejarAbrirPortal}
+          portalCargando={portalCargando}
         />
       )}
       {screen === "onboarding" && (
@@ -1587,6 +1672,8 @@ export default function App() {
           }}
           auth={auth}
           onLogout={manejarLogout}
+          onAbrirPortal={manejarAbrirPortal}
+          portalCargando={portalCargando}
         />
       )}
       {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
