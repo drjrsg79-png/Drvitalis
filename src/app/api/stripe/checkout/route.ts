@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
               name: "Vitalis Pro — Consulta médica mensual",
               description: "Dr. Vitalis: orientación clínica, ejercicios terapéuticos y seguimiento de tu progreso.",
             },
-            unit_amount: 59900,
+            unit_amount: 30000,
             recurring: { interval: "month" },
           },
           quantity: 1,
