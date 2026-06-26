@@ -41,7 +41,20 @@ LO QUE SÍ PUEDES HACER:
 - Indicar con claridad cuándo y por qué se recomienda consulta presencial.
 - Mantener confidencialidad absoluta sobre lo que comparte el paciente.
 
-Si el usuario insiste en obtener una dosis o nombre de medicamento con cantidad específica, responde con firmeza y empatía: "Eso es justo lo que su médico necesita evaluar en persona, porque depende de su historial y otros medicamentos que tome. Lo que sí puedo hacer es explicarle las opciones que existen y ayudarle a preparar esa consulta."`;
+Si el usuario insiste en obtener una dosis o nombre de medicamento con cantidad específica, responde con firmeza y empatía: "Eso es justo lo que su médico necesita evaluar en persona, porque depende de su historial y otros medicamentos que tome. Lo que sí puedo hacer es explicarle las opciones que existen y ayudarle a preparar esa consulta."
+
+INTERCONSULTA CON EL ANDRÓLOGO:
+Cuando el caso del paciente sea más especializado o complejo — temas hormonales, fertilidad, condiciones anatómicas, casos que ya no son orientación general sino que requieren mirada de subespecialista — responde EN DOS PARTES separadas por la etiqueta exacta [ANDROLOGO] en una línea propia:
+
+1. Primero, como Dr. Vitalis: reconoce la pregunta y explica que vas a consultarlo con el andrólogo del equipo.
+2. Después de la etiqueta [ANDROLOGO]: la respuesta del andrólogo, con su propia perspectiva de subespecialista en salud sexual, reproductiva y hormonal masculina — más técnica pero igual de clara, siguiendo exactamente las mismas reglas absolutas de arriba (nunca dosis ni prescripción).
+
+Ejemplo de formato:
+"Entiendo su preocupación. Esto toca un área hormonal específica, así que voy a consultarlo con el andrólogo de nuestro equipo para darle una perspectiva más precisa.
+[ANDROLOGO]
+Buenas tardes. Revisando lo que comenta..."
+
+NO uses esta interconsulta en preguntas generales, de seguimiento simple, o que ya respondiste antes en la misma conversación — sería redundante y perdería valor. Úsala solo cuando realmente aporte una perspectiva distinta y más especializada.`;
 }
 
 const MENSAJE_LIMITE_ALCANZADO =
@@ -129,11 +142,31 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
-    const reply: string =
+    const textoCompleto: string =
       data?.content?.[0]?.text ||
       'Disculpe, no pude formular una respuesta. ¿Podría reformular su consulta?';
 
-    const respuesta = NextResponse.json({ reply });
+    // Si el modelo activó la interconsulta, el texto viene en dos partes
+    // separadas por la etiqueta [ANDROLOGO]. Se separan aquí para que el
+    // cliente pueda mostrarlas en burbujas distintas con su propia identidad.
+    const marcador = '[ANDROLOGO]';
+    const indiceMarcador = textoCompleto.indexOf(marcador);
+    let reply = textoCompleto;
+    let replyAndrologo: string | null = null;
+
+    if (indiceMarcador !== -1) {
+      reply = textoCompleto.slice(0, indiceMarcador).trim();
+      replyAndrologo = textoCompleto.slice(indiceMarcador + marcador.length).trim();
+      // Si por alguna razón el primer tramo quedó vacío, se usa un puente
+      // breve para no dejar una burbuja sin contenido.
+      if (!reply) {
+        reply = 'Voy a consultarlo con el andrólogo de nuestro equipo.';
+      }
+    }
+
+    const respuesta = NextResponse.json(
+      replyAndrologo ? { reply, reply_andrologo: replyAndrologo } : { reply }
+    );
 
     // Incrementa el contador de mensajes gratuitos solo si la consulta se
     // respondió con éxito y el usuario no tiene Pro.
