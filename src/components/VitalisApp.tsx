@@ -26,7 +26,7 @@ type Perfil = {
 };
 
 type Intent = "chat" | "subscribe";
-type ChatMessage = { role: "user" | "assistant"; content: string };
+type ChatMessage = { role: "user" | "assistant"; content: string; voz?: "vitalis" | "andrologo" };
 
 type AuthUsuario = {
   id: string;
@@ -1221,11 +1221,25 @@ const ChatView = ({
             pais: perfil.pais,
             condicion: perfil.condicion,
           },
-          messages: newMsgs,
+          // Solo se manda role/content al servidor — el campo "voz" es
+          // metadata visual del cliente, no algo que la API de Anthropic
+          // deba recibir.
+          messages: newMsgs.map((m) => ({ role: m.role, content: m.content })),
         }),
       });
       const data = await res.json();
-      setMsgs((p) => [...p, { role: "assistant", content: data.reply || "Disculpe, no pude responder en este momento." }]);
+      if (data.reply_andrologo) {
+        // El historial guarda el texto completo con el marcador [ANDROLOGO]
+        // (así el modelo ve su propio formato en turnos futuros), pero se
+        // reconstruye como UN mensaje — el render visual lo separa en dos
+        // burbujas usando el mismo marcador.
+        setMsgs((p) => [
+          ...p,
+          { role: "assistant", content: `${data.reply}\n[ANDROLOGO]\n${data.reply_andrologo}` },
+        ]);
+      } else {
+        setMsgs((p) => [...p, { role: "assistant", content: data.reply || "Disculpe, no pude responder en este momento." }]);
+      }
       if (data.limite_alcanzado) {
         setLimiteAlcanzado(true);
       }
@@ -1336,26 +1350,91 @@ const ChatView = ({
 
       <div style={{ flex: 1, overflowY: "auto", padding: "22px", display: "flex", flexDirection: "column", gap: "12px" }}>
         <div style={{ maxWidth: "760px", width: "100%", margin: "0 auto", display: "flex", flexDirection: "column", gap: "12px" }}>
-          {msgs.map((m, i) => (
-            <div key={i} className="fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
-              <div
-                style={{
-                  maxWidth: "82%",
-                  padding: "12px 16px",
-                  borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
-                  background: m.role === "user" ? T.charcoal : T.white,
-                  color: m.role === "user" ? T.white : T.ink,
-                  fontSize: "14.5px",
-                  lineHeight: 1.55,
-                  border: m.role === "assistant" ? `1px solid ${T.border}` : "none",
-                  whiteSpace: "pre-wrap",
-                  boxShadow: m.role === "assistant" ? "0 2px 10px -8px rgba(27,27,29,0.4)" : "none",
-                }}
-              >
-                {m.content}
+          {msgs.map((m, i) => {
+            // Si el mensaje del asistente contiene el marcador, se separa en
+            // dos burbujas visuales: la del Dr. Vitalis y, debajo, la del
+            // andrólogo en interconsulta — con su propia identidad visual.
+            const marcador = "[ANDROLOGO]";
+            const tieneInterconsulta = m.role === "assistant" && m.content.includes(marcador);
+            const partes = tieneInterconsulta ? m.content.split(marcador) : [m.content];
+            const textoVitalis = partes[0]?.trim();
+            const textoAndrologo = partes[1]?.trim();
+
+            return (
+              <div key={i} style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {textoVitalis && (
+                  <div className="fade" style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                    <div
+                      style={{
+                        maxWidth: "82%",
+                        padding: "12px 16px",
+                        borderRadius: m.role === "user" ? "16px 16px 4px 16px" : "16px 16px 16px 4px",
+                        background: m.role === "user" ? T.charcoal : T.white,
+                        color: m.role === "user" ? T.white : T.ink,
+                        fontSize: "14.5px",
+                        lineHeight: 1.55,
+                        border: m.role === "assistant" ? `1px solid ${T.border}` : "none",
+                        whiteSpace: "pre-wrap",
+                        boxShadow: m.role === "assistant" ? "0 2px 10px -8px rgba(27,27,29,0.4)" : "none",
+                      }}
+                    >
+                      {textoVitalis}
+                    </div>
+                  </div>
+                )}
+                {tieneInterconsulta && textoAndrologo && (
+                  <div className="fade" style={{ display: "flex", justifyContent: "flex-start" }}>
+                    <div style={{ maxWidth: "82%" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "7px",
+                          marginBottom: "5px",
+                          paddingLeft: "4px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: "20px",
+                            height: "20px",
+                            borderRadius: "999px",
+                            background: T.teal,
+                            color: T.white,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "10px",
+                            fontWeight: 800,
+                            flexShrink: 0,
+                          }}
+                        >
+                          A
+                        </span>
+                        <span style={{ fontSize: "11.5px", fontWeight: 700, color: T.teal }}>
+                          Andrólogo · Salud sexual, reproductiva y hormonal masculina
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          padding: "12px 16px",
+                          borderRadius: "16px 16px 16px 4px",
+                          background: "rgba(45,125,111,0.06)",
+                          color: T.ink,
+                          fontSize: "14.5px",
+                          lineHeight: 1.55,
+                          border: `1px solid rgba(45,125,111,0.25)`,
+                          whiteSpace: "pre-wrap",
+                        }}
+                      >
+                        {textoAndrologo}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {soloSaludo && !loading && !limiteAlcanzado && (
             <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", paddingTop: "4px" }}>
