@@ -95,6 +95,8 @@ export async function POST(req: NextRequest) {
     });
 
     if (!respuesta.ok) {
+      const detalle = await respuesta.text().catch(() => "");
+      console.error("SendGrid error", respuesta.status, detalle);
       return NextResponse.json(
         { error: "No se pudo enviar el correo. Intente de nuevo." },
         { status: 502 }
@@ -102,7 +104,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error("Error en /api/auth/solicitar", err);
     return NextResponse.json(
       { error: "Ocurrió un error al solicitar el acceso." },
       { status: 500 }
