@@ -4,7 +4,7 @@ import "./globals.css";
 
 const display = Fraunces({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
+  weight: ["600"],
   style: ["normal", "italic"],
   variable: "--font-display",
   display: "swap",
@@ -12,7 +12,7 @@ const display = Fraunces({
 
 const body = Manrope({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
+  weight: ["400", "600", "700", "800"],
   variable: "--font-body",
   display: "swap",
 });
