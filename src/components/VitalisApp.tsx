@@ -38,7 +38,7 @@ type AuthUsuario = {
   suscripcionActiva: boolean;
 };
 
-const PRECIO = "$599 MXN";
+const PRECIO = "$300 MXN";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -775,7 +775,7 @@ const Landing = ({
                 gap: "6px",
               }}
             >
-              <span>🔒</span> Sin compromiso — cancele en un toque cuando quiera
+              <span>🔒</span> Garantía de 7 días — si no le sirve, le devolvemos su dinero
             </p>
           )}
         </div>
@@ -791,6 +791,7 @@ const Landing = ({
             ["¿Mis conversaciones son privadas?", "Sí. Lo que compartes con el Dr. Vitalis es confidencial y tu información se mantiene protegida en todo momento."],
             ["¿El Dr. Vitalis sustituye a mi médico?", "No. Vitalis te orienta y te acompaña, pero no reemplaza una valoración presencial ni la atención de urgencias."],
             ["¿Puedo cancelar cuando quiera?", "Por supuesto. La suscripción es mensual y puedes cancelarla en cualquier momento, sin penalizaciones ni preguntas."],
+            ["¿Qué pasa si no me sirve?", "Tiene 7 días de garantía desde que se suscribe. Si en ese tiempo siente que Vitalis Pro no es para usted, le devolvemos su dinero, sin necesidad de explicar por qué."],
             ["¿Cómo se realiza el cobro?", `El cobro de ${PRECIO} al mes se procesa de forma segura a través de Stripe.`],
           ].map(([q, a]) => (
             <details
@@ -1499,7 +1500,7 @@ const ChatView = ({
               <Monogram size={28} />
               <div>
                 <p style={{ fontSize: "13.5px", color: T.ink, fontWeight: 700, margin: "0 0 3px" }}>
-                  Ha usado sus 3 consultas gratuitas
+                  Ha usado sus 6 consultas gratuitas
                 </p>
                 <p style={{ fontSize: "13px", color: T.muted, margin: 0, lineHeight: 1.5 }}>
                   Para que sigamos revisando su caso sin interrupciones — y con seguimiento de su progreso —
@@ -1508,7 +1509,7 @@ const ChatView = ({
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "12px", color: T.teal, fontWeight: 700 }}>🔒 Sin compromiso — cancele cuando quiera</span>
+              <span style={{ fontSize: "12px", color: T.teal, fontWeight: 700 }}>🔒 Garantía de 7 días, su dinero de vuelta si no le sirve</span>
               <button
                 onClick={onSubscribe}
                 disabled={subscribing}
