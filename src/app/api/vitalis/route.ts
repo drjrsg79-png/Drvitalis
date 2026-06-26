@@ -13,7 +13,7 @@ type PerfilPaciente = {
 // Límite de mensajes del usuario para cuentas sin Vitalis Pro. Se cuenta del
 // lado del servidor (cookie incrementada aquí, nunca por el cliente) para que
 // no se pueda manipular editando el array de mensajes antes de enviarlo.
-const LIMITE_MENSAJES_GRATIS = 3;
+const LIMITE_MENSAJES_GRATIS = 6;
 
 // El system prompt vive ÚNICAMENTE en el servidor. El cliente nunca debe poder
 // definir ni sobreescribir estas reglas: si el prompt se construyera con datos
@@ -58,7 +58,7 @@ NO uses esta interconsulta en preguntas generales, de seguimiento simple, o que 
 }
 
 const MENSAJE_LIMITE_ALCANZADO =
-  'Ha usado sus 3 consultas gratuitas. Para que sigamos revisando su caso sin interrupciones, active Vitalis Pro — toma menos de un minuto y puede cancelar cuando quiera.';
+  'Ha usado sus 6 consultas gratuitas. Para que sigamos revisando su caso sin interrupciones, active Vitalis Pro — toma menos de un minuto y tiene garantía de 7 días.';
 
 export async function POST(request: NextRequest) {
   try {
