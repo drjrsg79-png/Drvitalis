@@ -76,7 +76,8 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ url: session.url });
-  } catch {
+  } catch (err) {
+    console.error("Error en /api/stripe/checkout", err);
     return NextResponse.json(
       { error: "No se pudo crear la sesión de pago." },
       { status: 500 }
