@@ -299,6 +299,48 @@ const Header = () => (
   </div>
 );
 
+// Credencial médica corta, pensada para vivir DENTRO del hero (no solo en el
+// footer) — es la pieza de confianza que resuelve la objeción "¿esto es real
+// o es una estafa?" en los primeros segundos, antes de que la persona decida
+// irse. Por eso lleva un ícono de verificación y va justo debajo del título.
+const CredencialMedica = ({ compact = false }: { compact?: boolean }) => (
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: compact ? "9px 16px" : "10px 18px",
+      background: T.white,
+      border: `1px solid ${T.border}`,
+      borderRadius: "999px",
+      boxShadow: "0 8px 20px -14px rgba(27,27,29,0.5)",
+    }}
+  >
+    <span
+      aria-hidden
+      style={{
+        width: "20px",
+        height: "20px",
+        borderRadius: "999px",
+        background: T.teal,
+        color: T.white,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "12px",
+        fontWeight: 800,
+        flexShrink: 0,
+      }}
+    >
+      ✓
+    </span>
+    <span style={{ fontSize: compact ? "12.5px" : "13px", lineHeight: 1.35, color: T.ink }}>
+      <strong style={{ fontWeight: 700 }}>Dr. José Rogelio Sánchez García</strong>
+      <span style={{ color: T.muted }}> · Céd. Prof. 4273375 · Medicina Interna y Terapia Intensiva</span>
+    </span>
+  </div>
+);
+
 const Landing = ({
   onStart,
   onSubscribe,
@@ -408,7 +450,7 @@ const Landing = ({
         style={{
           maxWidth: "1120px",
           margin: "0 auto",
-          padding: "56px 24px 30px",
+          padding: "40px 24px 30px",
           display: "grid",
           gridTemplateColumns: "minmax(0, 1.15fr) minmax(0, 0.85fr)",
           gap: "48px",
@@ -429,12 +471,19 @@ const Landing = ({
               fontSize: "12px",
               fontWeight: 700,
               letterSpacing: "0.02em",
-              marginBottom: "24px",
+              marginBottom: "16px",
             }}
           >
             <span style={{ width: "6px", height: "6px", borderRadius: "999px", background: T.teal }} />
             Salud sexual masculina con IA clínica
           </div>
+
+          {/* Credencial médica — visible ANTES del scroll, resuelve la duda
+              de "¿esto es real?" en el mismo instante en que se lee el título. */}
+          <div style={{ marginBottom: "20px" }}>
+            <CredencialMedica />
+          </div>
+
           <h1
             style={{
               fontFamily: display,
@@ -442,38 +491,64 @@ const Landing = ({
               lineHeight: 1.04,
               fontWeight: 600,
               color: T.charcoal,
-              margin: "0 0 20px",
+              margin: "0 0 18px",
               letterSpacing: "-0.01em",
             }}
           >
             Recupera el control de tu salud sexual,{" "}
             <span style={{ fontStyle: "italic", color: T.goldDark }}>con un especialista a tu lado</span>
           </h1>
-          <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 30px", maxWidth: "540px" }}>
-            El Dr. Vitalis es un asistente clínico de IA en salud sexual masculina que entiende tu caso, te orienta de
-            forma privada y te acompaña con ejercicios terapéuticos y seguimiento de tu progreso — y te guía con
-            claridad hacia consulta presencial cuando tu caso lo requiere.
+
+          {/* Subtítulo reescrito para responder directo la objeción de
+              desconfianza ("¿es real / es seguro / quién hay detrás?") en
+              vez de solo describir el producto. */}
+          <p style={{ fontSize: "18px", lineHeight: 1.62, color: T.muted, margin: "0 0 14px", maxWidth: "540px" }}>
+            Vitalis es un acompañamiento clínico real, creado y supervisado por un médico con cédula
+            profesional vigente — no un chatbot genérico. Hablas en privado con el Dr. Vitalis, recibes
+            orientación clara sobre tu caso y ejercicios terapéuticos, y decides tú cuándo avanzar a Vitalis Pro.
           </p>
-          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+          <p
+            style={{
+              fontSize: "13.5px",
+              lineHeight: 1.5,
+              color: T.teal,
+              fontWeight: 700,
+              margin: "0 0 28px",
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
+            }}
+          >
+            <span>🔒</span> Sin pago para empezar — las primeras 6 consultas son gratis
+          </p>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "flex-start" }}>
             <button
               onClick={() => {
                 trackEvento("click_hablar_con_dr_vitalis");
                 onStart();
               }}
-              className="btn btn-primary"
+              className="btn btn-primary btn-hero-cta"
               style={{
-                padding: "15px 32px",
+                padding: "20px 44px",
                 background: T.goldButton,
                 color: T.white,
                 border: "none",
                 borderRadius: "999px",
-                fontSize: "15px",
-                fontWeight: 700,
+                fontSize: "17px",
+                fontWeight: 800,
                 cursor: "pointer",
+                boxShadow: "0 18px 40px -16px rgba(138,108,27,0.65)",
               }}
             >
-              Hablar con el Dr. Vitalis
+              Hablar ahora con el Dr. Vitalis — gratis
             </button>
+            <span style={{ fontSize: "12.5px", color: T.muted }}>
+              Sin tarjeta. Sin registro. Su conversación es completamente confidencial.
+            </span>
+          </div>
+
+          <div style={{ marginTop: "10px" }}>
             <button
               onClick={() => {
                 trackEvento("click_conocer_programa");
@@ -481,19 +556,20 @@ const Landing = ({
               }}
               className="btn btn-ghost"
               style={{
-                padding: "15px 30px",
+                padding: "13px 26px",
                 background: "transparent",
                 color: T.charcoal,
                 border: `1px solid ${T.charcoal}`,
                 borderRadius: "999px",
-                fontSize: "15px",
+                fontSize: "14px",
                 fontWeight: 700,
                 cursor: "pointer",
               }}
             >
-              Conocer el programa
+              Conocer el programa completo
             </button>
           </div>
+
           <div
             style={{
               display: "flex",
