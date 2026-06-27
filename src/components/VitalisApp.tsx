@@ -336,7 +336,7 @@ const CredencialMedica = ({ compact = false }: { compact?: boolean }) => (
     </span>
     <span style={{ fontSize: compact ? "12.5px" : "13px", lineHeight: 1.35, color: T.ink }}>
       <strong style={{ fontWeight: 700 }}>Dr. José Rogelio Sánchez García</strong>
-      <span style={{ color: T.muted }}> · Céd. Prof. 4273375 · Medicina Interna y Terapia Intensiva</span>
+      <span style={{ color: T.muted }}> · Céd. Prof. 4273375 · Diplomado en Andrología</span>
     </span>
   </div>
 );
