@@ -1,6 +1,22 @@
 'use client';
 import { useState, useRef, useEffect } from "react";
 
+declare global {
+  interface Window {
+    dataLayer?: Record<string, unknown>[];
+  }
+}
+
+// Envía un evento personalizado al dataLayer de Google Tag Manager. Se usa en
+// los puntos clave del embudo (inicio de chat, mensaje enviado, límite
+// alcanzado, click en pago) para poder ver en Analytics dónde abandona la
+// gente, ya que antes no había ninguna medición instalada en el sitio.
+function trackEvento(evento: string, datos?: Record<string, unknown>): void {
+  if (typeof window === "undefined") return;
+  window.dataLayer = window.dataLayer || [];
+  window.dataLayer.push({ event: evento, ...datos });
+}
+
 const T = {
   cream: "#F7F4EE",
   creamDeep: "#EFE9DF",
@@ -440,7 +456,10 @@ const Landing = ({
           </p>
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
-              onClick={onStart}
+              onClick={() => {
+                trackEvento("click_hablar_con_dr_vitalis");
+                onStart();
+              }}
               className="btn btn-primary"
               style={{
                 padding: "15px 32px",
@@ -456,7 +475,10 @@ const Landing = ({
               Hablar con el Dr. Vitalis
             </button>
             <button
-              onClick={onSubscribe}
+              onClick={() => {
+                trackEvento("click_conocer_programa");
+                onSubscribe();
+              }}
               className="btn btn-ghost"
               style={{
                 padding: "15px 30px",
@@ -745,7 +767,10 @@ const Landing = ({
             ))}
           </ul>
           <button
-            onClick={onSubscribe}
+            onClick={() => {
+              trackEvento("click_activar_pro_pricing");
+              onSubscribe();
+            }}
             disabled={!!auth?.suscripcionActiva}
             className="btn btn-primary"
             style={{
@@ -1211,6 +1236,11 @@ const ChatView = ({
     setMsgs(newMsgs);
     setInput("");
     setLoading(true);
+    // Se cuenta solo mensajes del usuario (no el saludo inicial del asistente)
+    // para saber, en Analytics, cuántas consultas reales hace la gente antes
+    // de abandonar o de llegar al límite.
+    const numeroMensaje = newMsgs.filter((m) => m.role === "user").length;
+    trackEvento("chat_mensaje_enviado", { numero_mensaje: numeroMensaje });
     try {
       const res = await fetch("/api/vitalis", {
         method: "POST",
@@ -1243,6 +1273,7 @@ const ChatView = ({
       }
       if (data.limite_alcanzado) {
         setLimiteAlcanzado(true);
+        trackEvento("chat_limite_alcanzado");
       }
     } catch {
       setMsgs((p) => [...p, { role: "assistant", content: "Error de conexión. Intente nuevamente en unos segundos." }]);
@@ -1329,7 +1360,10 @@ const ChatView = ({
         >
           <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para consultas ilimitadas y seguimiento completo.</span>
           <button
-            onClick={onSubscribe}
+            onClick={() => {
+              trackEvento("click_activar_pro_banner_chat");
+              onSubscribe();
+            }}
             disabled={subscribing}
             className="btn btn-primary"
             style={{
@@ -1511,7 +1545,10 @@ const ChatView = ({
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
               <span style={{ fontSize: "12px", color: T.teal, fontWeight: 700 }}>🔒 Garantía de 7 días, su dinero de vuelta si no le sirve</span>
               <button
-                onClick={onSubscribe}
+                onClick={() => {
+                  trackEvento("click_activar_pro_limite_alcanzado");
+                  onSubscribe();
+                }}
                 disabled={subscribing}
                 className="btn btn-primary"
                 style={{
@@ -1615,6 +1652,9 @@ export default function App() {
     if (params.get("success") === "true") {
       setScreen("success");
       window.history.replaceState({}, "", "/");
+      // Evento de conversión real — esto es lo más importante de medir en
+      // todo el embudo, ya que confirma que el pago se completó en Stripe.
+      trackEvento("compra_completada");
       // Tras un pago exitoso se refresca el estado de sesión para reflejar
       // la suscripción activa de inmediato.
       consultarSesion();
@@ -1645,9 +1685,11 @@ export default function App() {
     setRedirecting(true);
     const url = await iniciarCheckout(p);
     if (url) {
+      trackEvento("checkout_iniciado");
       window.location.href = url;
     } else {
       setRedirecting(false);
+      trackEvento("checkout_error");
       alert("No se pudo iniciar el pago. Verifica tus datos e intenta de nuevo.");
     }
   };
