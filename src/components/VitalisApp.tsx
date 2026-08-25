@@ -1,6 +1,14 @@
 'use client';
 import { useState, useRef, useEffect } from "react";
 
+interface Perfil {
+  nombre: string;
+  email: string;
+  edad: string;
+  pais: string;
+  condicion: string;
+}
+
 const T = { cream:"#FAF8F5", charcoal:"#1C1C1E", gold:"#B8922A", white:"#FFFFFF", ink:"#2E2E30", border:"#DDD8CE", muted:"#7A7670", teal:"#2D7D6F" };
 
 const Landing = ({onStart}) => (
@@ -89,7 +97,7 @@ const ChatView = ({perfil,onGoToPayment}) => {
   const endRef = useRef(null);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[msgs]);
   
-  const send = async (text) => {
+  const send = async (text: string) => {
     if(!text.trim()||loading)return;
     const newMsgs = [...msgs,{role:"user",content:text}];
     setMsgs(newMsgs);setInput("");setLoading(true);
@@ -110,7 +118,7 @@ const ChatView = ({perfil,onGoToPayment}) => {
       <div style={{minHeight:"100vh",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"20px",background:T.cream,textAlign:"center"}}>
         <h2 style={{fontSize:"24px",color:T.charcoal,marginBottom:"20px"}}>Conversación completada</h2>
         <p style={{fontSize:"14px",color:T.muted,marginBottom:"30px",maxWidth:"400px"}}>
-          Para acceder a consultas ilimitadas con el Dr. Rogelio, completa tu suscripción.
+          Para acceder a conversaciones ilimitadas con el Dr. Rogelio, completa tu suscripción.
         </p>
         <button onClick={onGoToPayment} style={{padding:"12px 32px",background:T.gold,color:T.white,border:"none",borderRadius:"4px",fontSize:"14px",fontWeight:"600",cursor:"pointer"}}>
           Ir a pago
@@ -154,13 +162,13 @@ const ChatView = ({perfil,onGoToPayment}) => {
 
 export default function App(){
   const [screen,setScreen] = useState("landing");
-  const [perfil,setPerfil] = useState({});
+  const [perfil,setPerfil] = useState<Perfil | null>(null);
   
   return(
     <>
       {screen==="landing"&&<Landing onStart={()=>setScreen("onboarding")}/>}
       {screen==="onboarding"&&<Onboarding onComplete={d=>{setPerfil(d);setScreen("chat");}}/>}
-      {screen==="chat"&&<ChatView perfil={perfil} onGoToPayment={()=>{window.location.href="/api/stripe/checkout?email="+encodeURIComponent(perfil.email)}}/>}
+      {screen==="chat"&&perfil&&<ChatView perfil={perfil} onGoToPayment={()=>{window.location.href="/api/stripe/checkout?email="+encodeURIComponent(perfil.email)}}/>}
     </>
   );
-                                                                               }
+}
