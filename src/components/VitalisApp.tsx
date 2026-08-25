@@ -721,7 +721,7 @@ const Landing = ({
             Acceso completo al Dr. Vitalis, protocolo personalizado y seguimiento. Cancela cuando quieras.
           </p>
           <ul style={{ listStyle: "none", padding: 0, margin: "0 0 26px", textAlign: "left", display: "flex", flexDirection: "column", gap: "12px" }}>
-            {["Consultas ilimitadas 24/7", "Orientación clínica clara sobre tu caso", "Ejercicios terapéuticos guiados", "Seguimiento de tu progreso"].map((f) => (
+            {["Conversaciones ilimitadas 24/7", "Orientación clínica clara sobre tu caso", "Ejercicios terapéuticos guiados", "Seguimiento de tu progreso"].map((f) => (
               <li key={f} style={{ display: "flex", gap: "11px", alignItems: "center", fontSize: "14px", color: T.ink }}>
                 <span
                   style={{
@@ -890,7 +890,7 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
       Suscripción activada
     </h2>
     <p style={{ fontSize: "16px", color: T.muted, maxWidth: "460px", margin: "0 0 30px", lineHeight: 1.6 }}>
-      Gracias por confiar en Vitalis. Tu acceso a Vitalis Pro está activo. Ya puedes iniciar tu consulta con el Dr.
+      Gracias por confiar en Vitalis. Tu acceso a Vitalis Pro está activo. Ya puedes iniciar tu conversación con el Dr.
       Vitalis.
     </p>
     <button
@@ -907,7 +907,7 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
         cursor: "pointer",
       }}
     >
-      Entrar a mi consulta
+      Entrar a mi conversación
     </button>
   </div>
 );
@@ -1327,7 +1327,7 @@ const ChatView = ({
             flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para consultas ilimitadas y seguimiento completo.</span>
+          <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para conversaciones ilimitadas y seguimiento completo.</span>
           <button
             onClick={onSubscribe}
             disabled={subscribing}
@@ -1500,7 +1500,7 @@ const ChatView = ({
               <Monogram size={28} />
               <div>
                 <p style={{ fontSize: "13.5px", color: T.ink, fontWeight: 700, margin: "0 0 3px" }}>
-                  Ha usado sus 4 consultas gratuitas
+                  Ha usado sus 4 conversaciones gratuitas
                 </p>
                 <p style={{ fontSize: "13px", color: T.muted, margin: 0, lineHeight: 1.5 }}>
                   Para que sigamos revisando su caso sin interrupciones — y con seguimiento de su progreso —
@@ -1536,8 +1536,8 @@ const ChatView = ({
               className="field"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Escriba su consulta..."
-              aria-label="Escriba su consulta"
+              placeholder="Escriba su mensaje..."
+              aria-label="Escriba su mensaje"
               onKeyDown={(e) => {
                 if (e.key === "Enter") send(input);
               }}
