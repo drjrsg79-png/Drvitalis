@@ -41,40 +41,79 @@ export async function asegurarSuscripcion(userId: string): Promise<void> {
   `;
 }
 
-// Marca la suscripción como activa al confirmarse el pago en Stripe.
-export async function activarSuscripcion(
+export async function activarAccesoSieteDias(
   userId: string,
-  stripeCustomerId: string | null,
-  stripeSubscriptionId: string | null
+  paymentId: string,
+  payerId: string | null
 ): Promise<void> {
   await db.sql`
-    update subscriptions set
-      status                 = 'active',
-      stripe_customer_id     = coalesce(${stripeCustomerId}, stripe_customer_id),
-      stripe_subscription_id = coalesce(${stripeSubscriptionId}, stripe_subscription_id)
+    insert into subscriptions (
+      user_id, status, plan, precio, moneda, mercadopago_payment_id,
+      mercadopago_payer_id, access_until
+    )
+    values (
+      ${userId}, 'active', '7_dias', 99, 'mxn', ${paymentId},
+      ${payerId}, now() + interval '7 days'
+    )
+    on conflict (user_id) do update set
+      status = 'active',
+      plan = '7_dias',
+      precio = 99,
+      moneda = 'mxn',
+      mercadopago_payment_id = excluded.mercadopago_payment_id,
+      mercadopago_payer_id = coalesce(excluded.mercadopago_payer_id, subscriptions.mercadopago_payer_id),
+      access_until = case
+        when subscriptions.mercadopago_payment_id = excluded.mercadopago_payment_id
+          then subscriptions.access_until
+        else greatest(coalesce(subscriptions.access_until, now()), now()) + interval '7 days'
+      end
+  `;
+}
+
+export async function activarVitalisPro(
+  userId: string,
+  subscriptionId: string | null,
+  payerId: string | null,
+  paymentId: string | null = null
+): Promise<void> {
+  await db.sql`
+    insert into subscriptions (
+      user_id, status, plan, precio, moneda, mercadopago_subscription_id,
+      mercadopago_payer_id, mercadopago_payment_id, access_until
+    )
+    values (
+      ${userId}, 'active', 'pro', 300, 'mxn', ${subscriptionId},
+      ${payerId}, ${paymentId}, null
+    )
+    on conflict (user_id) do update set
+      status = 'active',
+      plan = 'pro',
+      precio = 300,
+      moneda = 'mxn',
+      mercadopago_subscription_id = coalesce(excluded.mercadopago_subscription_id, subscriptions.mercadopago_subscription_id),
+      mercadopago_payer_id = coalesce(excluded.mercadopago_payer_id, subscriptions.mercadopago_payer_id),
+      mercadopago_payment_id = coalesce(excluded.mercadopago_payment_id, subscriptions.mercadopago_payment_id),
+      access_until = null
+  `;
+}
+
+export async function actualizarEstadoPorMercadoPagoSubscriptionId(
+  subscriptionId: string,
+  status: string
+): Promise<void> {
+  await db.sql`
+    update subscriptions set status = ${status}
+    where mercadopago_subscription_id = ${subscriptionId}
+  `;
+}
+
+export async function actualizarEstadoMercadoPagoPorUsuario(
+  userId: string,
+  status: string
+): Promise<void> {
+  await db.sql`
+    update subscriptions set status = ${status}
     where user_id = ${userId}
-  `;
-}
-
-// Actualiza el estado de la suscripción por su id de Stripe (cancelaciones, etc.).
-export async function actualizarEstadoPorSubscriptionId(
-  stripeSubscriptionId: string,
-  status: string
-): Promise<void> {
-  await db.sql`
-    update subscriptions set status = ${status}
-    where stripe_subscription_id = ${stripeSubscriptionId}
-  `;
-}
-
-// Marca un cobro recurrente fallido por el id de cliente de Stripe.
-export async function marcarPorCustomerId(
-  stripeCustomerId: string,
-  status: string
-): Promise<void> {
-  await db.sql`
-    update subscriptions set status = ${status}
-    where stripe_customer_id = ${stripeCustomerId}
   `;
 }
 
@@ -90,6 +129,7 @@ export type EstadoUsuario = {
   pais: string | null;
   condicion: string | null;
   suscripcionActiva: boolean;
+  plan: string | null;
 };
 
 // Crea (o reutiliza) el usuario por correo y devuelve su id. A diferencia de
@@ -164,8 +204,11 @@ export async function obtenerUsuarioPorSesion(sessionToken: string): Promise<Est
     pais: string | null;
     condicion: string | null;
     status: string | null;
+    plan: string | null;
+    access_until: string | null;
   }>`
-    select u.id, u.email, u.nombre, u.edad, u.pais, u.condicion, s.status
+    select u.id, u.email, u.nombre, u.edad, u.pais, u.condicion,
+      s.status, s.plan, s.access_until
     from sessions sess
     join users u on u.id = sess.user_id
     left join subscriptions s on s.user_id = u.id
@@ -181,22 +224,26 @@ export async function obtenerUsuarioPorSesion(sessionToken: string): Promise<Est
     edad: fila.edad,
     pais: fila.pais,
     condicion: fila.condicion,
-    suscripcionActiva: fila.status === "active",
+    plan: fila.plan,
+    suscripcionActiva:
+      fila.status === "active" &&
+      (fila.plan === "pro" ||
+        (fila.plan === "7_dias" &&
+          Boolean(fila.access_until) &&
+          new Date(fila.access_until as string).getTime() > Date.now())),
   };
 }
 
-// Obtiene el stripe_customer_id del usuario a partir de su sesión activa.
-// Se usa para abrir el Customer Portal de Stripe (administrar suscripción).
-// Devuelve null si la sesión no existe, expiró, o el usuario nunca pagó
-// (y por tanto no tiene un cliente de Stripe asociado todavía).
-export async function obtenerStripeCustomerIdPorSesion(sessionToken: string): Promise<string | null> {
-  const filas = await db.sql<{ stripe_customer_id: string | null }>`
-    select s.stripe_customer_id
+export async function obtenerMercadoPagoSubscriptionIdPorSesion(
+  sessionToken: string
+): Promise<string | null> {
+  const filas = await db.sql<{ mercadopago_subscription_id: string | null }>`
+    select s.mercadopago_subscription_id
     from sessions sess
     join users u on u.id = sess.user_id
     left join subscriptions s on s.user_id = u.id
     where sess.token = ${sessionToken}
       and sess.expires_at > now()
   `;
-  return filas[0]?.stripe_customer_id ?? null;
+  return filas[0]?.mercadopago_subscription_id ?? null;
 }

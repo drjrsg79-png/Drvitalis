@@ -25,7 +25,7 @@ type Perfil = {
   condicion: string;
 };
 
-type Intent = "chat" | "subscribe";
+type Intent = "chat" | "7_dias" | "pro";
 type ChatMessage = { role: "user" | "assistant"; content: string; voz?: "vitalis" | "andrologo" };
 
 type AuthUsuario = {
@@ -36,9 +36,11 @@ type AuthUsuario = {
   pais: string | null;
   condicion: string | null;
   suscripcionActiva: boolean;
+  plan: string | null;
 };
 
-const PRECIO = "$300 MXN";
+const PRECIO_PRO = "$300 MXN";
+const PRECIO_7_DIAS = "$99 MXN";
 
 const emailValido = (v: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim());
 
@@ -51,19 +53,12 @@ async function cerrarSesion(): Promise<void> {
   }
 }
 
-// Abre el Customer Portal de Stripe (administrar suscripción: cancelar, ver
-// facturas, cambiar método de pago). Devuelve true si pudo redirigir, false
-// si hubo un error — en ese caso el llamador debe mostrar el mensaje al usuario.
-async function abrirPortalSuscripcion(): Promise<string | null> {
+async function cancelarSuscripcion(): Promise<boolean> {
   try {
-    const res = await fetch("/api/stripe/portal", { method: "POST" });
-    const data = await res.json();
-    if (res.ok && data.url) {
-      return data.url as string;
-    }
-    return null;
+    const res = await fetch("/api/mercadopago/subscription", { method: "DELETE" });
+    return res.ok;
   } catch {
-    return null;
+    return false;
   }
 }
 
@@ -233,9 +228,12 @@ const LoginModal = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
+async function iniciarCheckout(
+  perfil: Perfil,
+  producto: Exclude<Intent, "chat">
+): Promise<string | null> {
   try {
-    const res = await fetch("/api/stripe/checkout", {
+    const res = await fetch("/api/mercadopago/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -244,6 +242,7 @@ async function iniciarCheckout(perfil: Perfil): Promise<string | null> {
         edad: perfil.edad,
         pais: perfil.pais,
         condicion: perfil.condicion,
+        producto,
       }),
     });
     const data = await res.json();
@@ -289,16 +288,16 @@ const Landing = ({
   auth,
   onOpenLogin,
   onLogout,
-  onAbrirPortal,
-  portalCargando,
+  onCancelarSuscripcion,
+  cancelandoSuscripcion,
 }: {
   onStart: () => void;
   onSubscribe: () => void;
   auth: AuthUsuario | null;
   onOpenLogin: () => void;
   onLogout: () => void;
-  onAbrirPortal: () => void;
-  portalCargando: boolean;
+  onCancelarSuscripcion: () => void;
+  cancelandoSuscripcion: boolean;
 }) => (
   <div style={{ minHeight: "100vh", background: T.cream, color: T.ink }}>
     {/* Atmospheric backdrop */}
@@ -331,10 +330,10 @@ const Landing = ({
             <span style={{ fontSize: "12.5px", color: T.muted, display: "none" }} className="auth-email-desktop">
               {auth.email}
             </span>
-            {auth.suscripcionActiva && (
+            {auth.suscripcionActiva && auth.plan === "pro" && (
               <button
-                onClick={onAbrirPortal}
-                disabled={portalCargando}
+                onClick={onCancelarSuscripcion}
+                disabled={cancelandoSuscripcion}
                 className="btn btn-ghost"
                 style={{
                   padding: "10px 18px",
@@ -344,10 +343,10 @@ const Landing = ({
                   borderRadius: "999px",
                   fontSize: "13px",
                   fontWeight: 700,
-                  cursor: portalCargando ? "wait" : "pointer",
+                  cursor: cancelandoSuscripcion ? "wait" : "pointer",
                 }}
               >
-                {portalCargando ? "Abriendo..." : "Administrar suscripción"}
+                {cancelandoSuscripcion ? "Cancelando..." : "Cancelar suscripción"}
               </button>
             )}
             <button
@@ -441,19 +440,20 @@ const Landing = ({
           <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
             <button
               onClick={onStart}
+              disabled={!!auth?.suscripcionActiva}
               className="btn btn-primary"
               style={{
                 padding: "15px 32px",
-                background: T.goldButton,
-                color: T.white,
+                background: auth?.suscripcionActiva ? T.border : T.goldButton,
+                color: auth?.suscripcionActiva ? T.muted : T.white,
                 border: "none",
                 borderRadius: "999px",
                 fontSize: "15px",
                 fontWeight: 700,
-                cursor: "pointer",
+                cursor: auth?.suscripcionActiva ? "default" : "pointer",
               }}
             >
-              Hablar con el Dr. Vitalis
+              {auth?.suscripcionActiva ? "Acceso Vitalis activo" : "Empezar 7 días por $99"}
             </button>
             <button
               onClick={onSubscribe}
@@ -469,7 +469,7 @@ const Landing = ({
                 cursor: "pointer",
               }}
             >
-              Conocer el programa
+              Vitalis Pro — $300 MXN/mes
             </button>
           </div>
           <div
@@ -625,7 +625,7 @@ const Landing = ({
           {[
             ["1", "Cuéntanos tu caso", "Completas un perfil breve y confidencial con tu información básica."],
             ["2", "Habla con el Dr. Vitalis", "Recibes orientación inmediata sobre tu salud sexual, sin esperas ni citas."],
-            ["3", "Active Vitalis Pro cuando esté listo", `Por ${PRECIO}/mes, consultas ilimitadas, ejercicios guiados y seguimiento continuo. Cancele cuando quiera.`],
+            ["3", "Elige cómo continuar", `Prueba 7 días por ${PRECIO_7_DIAS} sin renovación automática o activa Vitalis Pro por ${PRECIO_PRO}/mes.`],
           ].map(([n, t, d]) => (
             <div
               key={n}
@@ -714,7 +714,7 @@ const Landing = ({
             Vitalis Pro
           </div>
           <div style={{ fontFamily: display, fontSize: "48px", fontWeight: 600, color: T.charcoal, lineHeight: 1 }}>
-            {PRECIO}
+            {PRECIO_PRO}
             <span style={{ fontFamily: "var(--font-body)", fontSize: "16px", fontWeight: 600, color: T.muted }}> / mes</span>
           </div>
           <p style={{ fontSize: "14px", color: T.muted, margin: "14px 0 24px", lineHeight: 1.55 }}>
@@ -746,21 +746,21 @@ const Landing = ({
           </ul>
           <button
             onClick={onSubscribe}
-            disabled={!!auth?.suscripcionActiva}
+            disabled={auth?.suscripcionActiva && auth.plan === "pro"}
             className="btn btn-primary"
             style={{
               width: "100%",
               padding: "16px",
-              background: auth?.suscripcionActiva ? T.border : T.gold,
-              color: auth?.suscripcionActiva ? T.muted : T.white,
+              background: auth?.suscripcionActiva && auth.plan === "pro" ? T.border : T.gold,
+              color: auth?.suscripcionActiva && auth.plan === "pro" ? T.muted : T.white,
               border: "none",
               borderRadius: "999px",
               fontSize: "15px",
               fontWeight: 700,
-              cursor: auth?.suscripcionActiva ? "default" : "pointer",
+              cursor: auth?.suscripcionActiva && auth.plan === "pro" ? "default" : "pointer",
             }}
           >
-            {auth?.suscripcionActiva ? "Ya tienes Vitalis Pro ✓" : "Activar Vitalis Pro"}
+            {auth?.suscripcionActiva && auth.plan === "pro" ? "Vitalis Pro activo" : "Activar Vitalis Pro"}
           </button>
           {!auth?.suscripcionActiva && (
             <p
@@ -775,7 +775,7 @@ const Landing = ({
                 gap: "6px",
               }}
             >
-              <span>🔒</span> Garantía de 7 días — si no le sirve, le devolvemos su dinero
+              Pago seguro procesado por Mercado Pago México
             </p>
           )}
         </div>
@@ -791,8 +791,8 @@ const Landing = ({
             ["¿Mis conversaciones son privadas?", "Sí. Lo que compartes con el Dr. Vitalis es confidencial y tu información se mantiene protegida en todo momento."],
             ["¿El Dr. Vitalis sustituye a mi médico?", "No. Vitalis te orienta y te acompaña, pero no reemplaza una valoración presencial ni la atención de urgencias."],
             ["¿Puedo cancelar cuando quiera?", "Por supuesto. La suscripción es mensual y puedes cancelarla en cualquier momento, sin penalizaciones ni preguntas."],
-            ["¿Qué pasa si no me sirve?", "Tiene 7 días de garantía desde que se suscribe. Si en ese tiempo siente que Vitalis Pro no es para usted, le devolvemos su dinero, sin necesidad de explicar por qué."],
-            ["¿Cómo se realiza el cobro?", `El cobro de ${PRECIO} al mes se procesa de forma segura a través de Stripe.`],
+            ["¿Cómo funciona Vitalis 7 días?", `Es un pago único de ${PRECIO_7_DIAS} que habilita acceso equivalente a Pro durante aproximadamente 7 días. No se renueva automáticamente.`],
+            ["¿Cómo se realiza el cobro?", `Los pagos de Vitalis 7 días y la suscripción de ${PRECIO_PRO} al mes se procesan de forma segura con Mercado Pago México.`],
           ].map(([q, a]) => (
             <details
               key={q}
@@ -887,11 +887,11 @@ const SuccessBanner = ({ onContinue }: { onContinue: () => void }) => (
       ✓
     </div>
     <h2 style={{ fontFamily: display, fontSize: "32px", fontWeight: 600, color: T.charcoal, margin: "0 0 14px" }}>
-      Suscripción activada
+      Pago recibido
     </h2>
     <p style={{ fontSize: "16px", color: T.muted, maxWidth: "460px", margin: "0 0 30px", lineHeight: 1.6 }}>
-      Gracias por confiar en Vitalis. Tu acceso a Vitalis Pro está activo. Ya puedes iniciar tu conversación con el Dr.
-      Vitalis.
+      Gracias por confiar en Vitalis. Mercado Pago confirmó el regreso al sitio y el acceso se habilita al recibir la
+      notificación firmada del pago.
     </p>
     <button
       onClick={onContinue}
@@ -1075,13 +1075,15 @@ const Onboarding = ({
             margin: "20px 0 14px",
           }}
         >
-          Paso final · Activar Vitalis Pro
+          {intent === "pro" ? "Paso final · Activar Vitalis Pro" : "Paso final · Activar Vitalis 7 días"}
         </div>
         <h2 style={{ fontFamily: display, fontSize: "27px", fontWeight: 600, color: T.charcoal, margin: "0 0 8px" }}>
           Información personal
         </h2>
         <p style={{ fontSize: "14px", color: T.muted, margin: "0 0 26px", lineHeight: 1.55 }}>
-          Confirma tus datos para activar Vitalis Pro. El cobro se realiza de forma segura con Stripe.
+          {intent === "pro"
+            ? "Confirma tus datos para activar Vitalis Pro. La suscripción mensual se procesa con Mercado Pago México."
+            : "Confirma tus datos para activar 7 días de acceso por $99 MXN. Es un pago único, sin renovación automática."}
         </p>
 
         <div style={{ marginBottom: "14px" }}>
@@ -1161,7 +1163,11 @@ const Onboarding = ({
             fontWeight: 700,
           }}
         >
-          {loading ? "Redirigiendo a pago seguro..." : `Continuar al pago — ${PRECIO}/mes`}
+          {loading
+            ? "Redirigiendo a Mercado Pago..."
+            : intent === "pro"
+              ? `Suscribirme a Vitalis Pro — ${PRECIO_PRO}/mes`
+              : `Empezar 7 días por ${PRECIO_7_DIAS}`}
         </button>
         <p style={{ fontSize: "12px", color: T.muted, textAlign: "center", margin: "16px 0 0", lineHeight: 1.5 }}>
           Tu información es confidencial y se usa solo para personalizar tu acompañamiento.
@@ -1183,16 +1189,16 @@ const ChatView = ({
   subscribing,
   auth,
   onLogout,
-  onAbrirPortal,
-  portalCargando,
+  onCancelarSuscripcion,
+  cancelandoSuscripcion,
 }: {
   perfil: Perfil;
   onSubscribe: () => void;
   subscribing: boolean;
   auth: AuthUsuario | null;
   onLogout: () => void;
-  onAbrirPortal: () => void;
-  portalCargando: boolean;
+  onCancelarSuscripcion: () => void;
+  cancelandoSuscripcion: boolean;
 }) => {
   const [msgs, setMsgs] = useState<ChatMessage[]>([
     { role: "assistant", content: `Buenas tardes, ${perfil.nombre || "paciente"}. Soy el Dr. Vitalis. ¿En qué puedo ayudarle hoy?` },
@@ -1276,10 +1282,10 @@ const ChatView = ({
         </div>
         {auth && (
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-            {auth.suscripcionActiva && (
+            {auth.suscripcionActiva && auth.plan === "pro" && (
               <button
-                onClick={onAbrirPortal}
-                disabled={portalCargando}
+                onClick={onCancelarSuscripcion}
+                disabled={cancelandoSuscripcion}
                 style={{
                   padding: "8px 14px",
                   background: "transparent",
@@ -1288,11 +1294,11 @@ const ChatView = ({
                   borderRadius: "999px",
                   fontSize: "12px",
                   fontWeight: 700,
-                  cursor: portalCargando ? "wait" : "pointer",
+                  cursor: cancelandoSuscripcion ? "wait" : "pointer",
                   whiteSpace: "nowrap",
                 }}
               >
-                {portalCargando ? "Abriendo..." : "Administrar suscripción"}
+                {cancelandoSuscripcion ? "Cancelando..." : "Cancelar suscripción"}
               </button>
             )}
             <button
@@ -1327,7 +1333,7 @@ const ChatView = ({
             flexWrap: "wrap",
           }}
         >
-          <span style={{ fontSize: "12.5px", color: T.ink }}>Activa Vitalis Pro para conversaciones ilimitadas y seguimiento completo.</span>
+          <span style={{ fontSize: "12.5px", color: T.ink }}>Prueba el acceso completo durante 7 días, sin renovación automática.</span>
           <button
             onClick={onSubscribe}
             disabled={subscribing}
@@ -1344,7 +1350,7 @@ const ChatView = ({
               whiteSpace: "nowrap",
             }}
           >
-            {subscribing ? "Procesando..." : `Suscribirme — ${PRECIO}/mes`}
+            {subscribing ? "Procesando..." : `Empezar 7 días — ${PRECIO_7_DIAS}`}
           </button>
         </div>
       )}
@@ -1504,12 +1510,12 @@ const ChatView = ({
                 </p>
                 <p style={{ fontSize: "13px", color: T.muted, margin: 0, lineHeight: 1.5 }}>
                   Para que sigamos revisando su caso sin interrupciones — y con seguimiento de su progreso —
-                  active Vitalis Pro. Toma menos de un minuto.
+                  active Vitalis por 7 días. Es un pago único y toma menos de un minuto.
                 </p>
               </div>
             </div>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-              <span style={{ fontSize: "12px", color: T.teal, fontWeight: 700 }}>🔒 Garantía de 7 días, su dinero de vuelta si no le sirve</span>
+              <span style={{ fontSize: "12px", color: T.teal, fontWeight: 700 }}>Sin renovación automática</span>
               <button
                 onClick={onSubscribe}
                 disabled={subscribing}
@@ -1526,7 +1532,7 @@ const ChatView = ({
                   whiteSpace: "nowrap",
                 }}
               >
-                {subscribing ? "Procesando..." : `Continuar con Vitalis Pro — ${PRECIO}/mes`}
+                {subscribing ? "Procesando..." : `Empezar 7 días — ${PRECIO_7_DIAS}`}
               </button>
             </div>
           </div>
@@ -1570,13 +1576,13 @@ const ChatView = ({
 export default function App() {
   const [screen, setScreen] = useState<"landing" | "onboarding" | "chat" | "success">("landing");
   const [perfil, setPerfil] = useState<Perfil>({ nombre: "", email: "", edad: "", pais: "", condicion: "" });
-  const [intent, setIntent] = useState<Intent>("chat");
+  const [intent, setIntent] = useState<Intent>("7_dias");
   const [redirecting, setRedirecting] = useState(false);
   const [auth, setAuth] = useState<AuthUsuario | null>(null);
   const [authCargado, setAuthCargado] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [authAviso, setAuthAviso] = useState<string | null>(null);
-  const [portalCargando, setPortalCargando] = useState(false);
+  const [cancelandoSuscripcion, setCancelandoSuscripcion] = useState(false);
 
   const consultarSesion = async () => {
     try {
@@ -1612,12 +1618,17 @@ export default function App() {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
 
-    if (params.get("success") === "true") {
+    const paymentStatus = params.get("payment");
+    if (paymentStatus === "success") {
       setScreen("success");
       window.history.replaceState({}, "", "/");
-      // Tras un pago exitoso se refresca el estado de sesión para reflejar
-      // la suscripción activa de inmediato.
       consultarSesion();
+    } else if (paymentStatus === "pending") {
+      setAuthAviso("El pago está pendiente. Activaremos el acceso cuando Mercado Pago lo confirme.");
+      window.history.replaceState({}, "", "/");
+    } else if (paymentStatus === "failure") {
+      setAuthAviso("El pago no se completó. Puede intentarlo nuevamente.");
+      window.history.replaceState({}, "", "/");
     }
 
     const authParam = params.get("auth");
@@ -1633,17 +1644,11 @@ export default function App() {
       window.history.replaceState({}, "", "/");
     }
 
-    if (params.get("portal") === "ok") {
-      window.history.replaceState({}, "", "/");
-      // Tras volver del portal de Stripe, se refresca el estado de sesión:
-      // si el usuario canceló ahí, el botón de pago debe volver a aparecer.
-      consultarSesion();
-    }
   }, []);
 
-  const irACheckout = async (p: Perfil) => {
+  const irACheckout = async (p: Perfil, producto: Exclude<Intent, "chat">) => {
     setRedirecting(true);
-    const url = await iniciarCheckout(p);
+    const url = await iniciarCheckout(p, producto);
     if (url) {
       window.location.href = url;
     } else {
@@ -1654,8 +1659,8 @@ export default function App() {
 
   const completarOnboarding = (p: Perfil) => {
     setPerfil(p);
-    if (intent === "subscribe") {
-      irACheckout(p);
+    if (intent !== "chat") {
+      irACheckout(p, intent);
     } else {
       setScreen("chat");
     }
@@ -1667,14 +1672,16 @@ export default function App() {
     setScreen("landing");
   };
 
-  const manejarAbrirPortal = async () => {
-    setPortalCargando(true);
-    const url = await abrirPortalSuscripcion();
-    if (url) {
-      window.location.href = url;
+  const manejarCancelarSuscripcion = async () => {
+    if (!window.confirm("¿Desea cancelar la renovación mensual de Vitalis Pro?")) return;
+    setCancelandoSuscripcion(true);
+    const cancelada = await cancelarSuscripcion();
+    setCancelandoSuscripcion(false);
+    if (cancelada) {
+      await consultarSesion();
+      setAuthAviso("La suscripción mensual quedó cancelada.");
     } else {
-      setPortalCargando(false);
-      alert("No se pudo abrir el portal de administración. Intente de nuevo en unos segundos.");
+      alert("No se pudo cancelar la suscripción. Intente de nuevo en unos segundos.");
     }
   };
 
@@ -1712,18 +1719,18 @@ export default function App() {
       {screen === "landing" && (
         <Landing
           onStart={() => {
-            setIntent("chat");
+            setIntent("7_dias");
             setScreen("onboarding");
           }}
           onSubscribe={() => {
-            setIntent("subscribe");
+            setIntent("pro");
             setScreen("onboarding");
           }}
           auth={auth}
           onOpenLogin={() => setShowLogin(true)}
           onLogout={manejarLogout}
-          onAbrirPortal={manejarAbrirPortal}
-          portalCargando={portalCargando}
+          onCancelarSuscripcion={manejarCancelarSuscripcion}
+          cancelandoSuscripcion={cancelandoSuscripcion}
         />
       )}
       {screen === "onboarding" && (
@@ -1740,20 +1747,17 @@ export default function App() {
           perfil={perfil}
           subscribing={redirecting}
           onSubscribe={() => {
-            setIntent("subscribe");
-            // Si ya se tiene correo (por sesión activa o captura previa), se
-            // va directo a Stripe. Si no, se pide el formulario completo de
-            // pago primero — el chat gratuito solo capturó el nombre.
+            setIntent("7_dias");
             if (perfil.email && emailValido(perfil.email)) {
-              irACheckout(perfil);
+              irACheckout(perfil, "7_dias");
             } else {
               setScreen("onboarding");
             }
           }}
           auth={auth}
           onLogout={manejarLogout}
-          onAbrirPortal={manejarAbrirPortal}
-          portalCargando={portalCargando}
+          onCancelarSuscripcion={manejarCancelarSuscripcion}
+          cancelandoSuscripcion={cancelandoSuscripcion}
         />
       )}
       {screen === "success" && <SuccessBanner onContinue={() => setScreen(perfil.nombre ? "chat" : "onboarding")} />}
