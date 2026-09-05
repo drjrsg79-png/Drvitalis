@@ -62,7 +62,7 @@ NO uses esta interconsulta en preguntas generales, de seguimiento simple, o que 
 }
 
 const MENSAJE_LIMITE_ALCANZADO =
-  'Ha usado sus 4 conversaciones gratuitas. Para que sigamos revisando su caso sin interrupciones, active Vitalis Pro — toma menos de un minuto y tiene garantía de 7 días.';
+  'Ha usado sus 4 conversaciones gratuitas. Para seguir sin interrupciones, active Vitalis 7 días por $99 MXN, en un pago único y sin renovación automática.';
 
 export async function POST(request: NextRequest) {
   try {
